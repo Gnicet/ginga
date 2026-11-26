@@ -1,3 +1,4 @@
+import {roomRequest} from "../roomRequest";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Send } from "lucide-react";
 import { rooms } from "../data/praca";
@@ -14,7 +15,7 @@ export function Rodas() {
     const controller = new AbortController();
     const refresh = async () => {
       try {
-        const r = await fetch("/api/rodas", { signal: controller.signal });
+        const r = await roomRequest("/api/rodas", { signal: controller.signal });
         if (r.ok) seat(await r.json());
       } catch {
         /* The lobby remains navigable while reconnecting. */
@@ -90,7 +91,7 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
     pending = useRef(false),
     initialized = useRef(false);
   async function sync(message?: Partial<RoomEvent>) {
-    const response = await fetch("/api/rodas/" + room.id, {
+    const response = await roomRequest("/api/rodas/" + room.id, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, id, after: cursor.current, message }),
@@ -132,7 +133,7 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
     return () => {
       alive.current = false;
       clearInterval(timer);
-      void fetch("/api/rodas/" + room.id, {
+      void roomRequest("/api/rodas/" + room.id, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, name, leave: true }),
