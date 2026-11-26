@@ -1,57 +1,186 @@
-import {useEffect,useRef,useState} from 'react'
-import {Bell,Bookmark,Check,ChevronRight,Flame,MapPin,Music2,Plus,Radio,TrendingUp,UsersRound} from 'lucide-react'
-import TopHeader,{FeedSwitch} from './components/layout/TopHeader'
-import BottomNav,{navItems} from './components/layout/BottomNav'
-import StoriesBar from './components/feed/StoriesBar'
-import PostCard from './components/feed/PostCard'
-import StoryViewerModal from './components/feed/StoryViewerModal'
-import CommentsDrawer from './components/feed/CommentsDrawer'
-import CreatePostModal from './components/create/CreatePostModal'
-import ExploreView from './components/explore/ExploreView'
-import ClipsView from './components/clips/ClipsView'
-import ProfileView from './components/profile/ProfileView'
-import {Dialog} from './components/shared/Dialog'
-import Image from './components/Image'
-import {useApp} from './context/AppContext'
-import {stories,people} from './data/mockData'
-import type {Post,Tab,Story,MusicTrack} from './types/social'
-function RightRail({story,search}:{story:()=>void;search:(s:string)=>void}){
- const {following,toggleFollow}=useApp()
- return <aside className="right-rail"><section className="rail-box feature"><h2><Radio/>Rolê em destaque</h2><button className="postcard" onClick={story}><img src="/barra.svg" alt="Ilustração do Farol da Barra ao pôr do sol" onError={e=>{e.currentTarget.style.visibility='hidden'}}/><span className="live"><i/>Rolê aberto</span><div className="postcard-foot"><span>Fim de tarde na Barra</span><small><MapPin size={13}/>Salvador, BA</small></div></button><button className="feature-action" onClick={story}>Entrar no rolê <ChevronRight size={17}/></button></section>
- <section className="rail-box trends"><h2><Flame/>Em alta no Ginga</h2>{[['#SaboresDoBrasil','Gastronomia','food'],['#SambaDeRoda','Música','music'],['#BrasilDeRua','Arte urbana','street']].map(([name,category,style])=><button key={name} onClick={()=>search(category)}><span className={'trend-icon '+style}>{style==='food'?<Flame/>:style==='music'?<Music2/>:<MapPin/>}</span><span><b>{name}</b><small>{category}</small></span><TrendingUp size={15}/></button>)}</section>
- <section className="rail-box suggestions"><h2><UsersRound/>Pra sua galera</h2>{[people[5],people[4]].map(person=><div key={person.id}><Image src={person.avatar}/><span><b>{person.name}</b><small>@{person.handle}</small></span><button aria-label={(following.includes(person.id)?'Deixar de seguir ':'Seguir ')+person.name} onClick={()=>toggleFollow(person.id)}>{following.includes(person.id)?<Check/>:<Plus/>}</button></div>)}</section></aside>
+import { useEffect, useState } from "react";
+import {
+  LayoutGrid,
+  Armchair,
+  BookOpen,
+  Plus,
+  Flower2,
+  Sun,
+  Moon,
+  SlidersHorizontal,
+} from "lucide-react";
+import { usePlaza } from "./context/Praca";
+import { tribes, type Tribe } from "./types/praca";
+import { OpenPostal, Postal } from "./components/Postal";
+import { Composer } from "./components/Composer";
+import { Passaporte } from "./components/Passaporte";
+import { Rodas } from "./components/Rodas";
+const nav = [
+  { id: "mural", label: "Mural", icon: LayoutGrid },
+  { id: "rodas", label: "Rodas", icon: Armchair },
+  { id: "passaporte", label: "Passaporte", icon: BookOpen },
+] as const;
+type Place = (typeof nav)[number]["id"];
+const headings = {
+  mural: "Mural da Praça",
+  rodas: "Rodas da Praça",
+  passaporte: "Meu passaporte",
+};
+export default function App() {
+  const { state, set } = usePlaza(),
+    [place, go] = useState<Place>("mural"),
+    [filter, choose] = useState<Tribe | "">(""),
+    [creating, compose] = useState(false),
+    [id, select] = useState(""),
+    [notice, notify] = useState("");
+  useEffect(() => {
+    const read = () =>
+      select(location.hash.match(/^#cartao\/(.+)$/)?.[1] ?? "");
+    read();
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
+  }, []);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => notify(""), 3200);
+    return () => clearTimeout(timer);
+  }, [notice]);
+  const open = (key: string) => {
+    location.hash = "cartao/" + key;
+  };
+  const close = () => {
+    history.replaceState(
+      history.state,
+      "",
+      location.pathname + location.search,
+    );
+    select("");
+  };
+  const switchTo = (p: Place) => {
+    go(p);
+    window.scrollTo(0, 0);
+  };
+  const cards = state.cards.filter((c) => !filter || c.tribe === filter),
+    current = state.cards.find((c) => c.id === id);
+  const date = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date());
+  return (
+    <>
+      <header className="mast">
+        <div className="mast-inner">
+          <button className="brand" onClick={() => switchTo("mural")}>
+            <Flower2 />
+            Praça<span>.</span>
+          </button>
+          <span className="tag">Onde o Brasil se encontra</span>
+          <div className="mast-actions">
+            <button
+              className="theme"
+              aria-label="Alternar modo dia e noite"
+              onClick={() => set((s) => ({ ...s, night: !s.night }))}
+            >
+              {state.night ? <Sun size={19} /> : <Moon size={19} />}
+            </button>
+            <button
+              className="avatar"
+              aria-label="Meu passaporte"
+              onClick={() => switchTo("passaporte")}
+            >
+              {state.profile.name.slice(0, 1)}
+            </button>
+          </div>
+        </div>
+      </header>
+      <main className="shell">
+        <div className="heading">
+          <div>
+            <div className="date">
+              <span /> {date}
+            </div>
+            <h1>
+              {headings[place]}
+              <em>.</em>
+            </h1>
+          </div>
+          <div className="tiles" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
+        </div>
+        {place === "mural" ? (
+          <>
+            <div className="filter-title">
+              <SlidersHorizontal size={14} /> Tribos & Bairros
+            </div>
+            <div className="chips">
+              {(["", ...tribes] as const).map((t) => (
+                <button
+                  key={t}
+                  aria-pressed={t === filter}
+                  onClick={() => choose(t)}
+                >
+                  {t || "Tudo na Praça"}
+                </button>
+              ))}
+            </div>
+            <div className="grid mural">
+              {cards.map((c, i) => (
+                <div
+                  className={i === 0 && c.media.kind === "visual" ? "lead" : ""}
+                  key={c.id}
+                >
+                  <Postal card={c} open={open} />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : place === "rodas" ? (
+          <Rodas />
+        ) : (
+          <Passaporte open={open} />
+        )}
+      </main>
+      <nav className="dock" aria-label="Ambientes da Praça">
+        {nav.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            aria-current={place === id ? "page" : undefined}
+            onClick={() => switchTo(id)}
+          >
+            <Icon size={19} />
+            <span>{label}</span>
+          </button>
+        ))}
+        <button
+          className="add"
+          aria-label="Colar no Mural"
+          title="Colar no Mural"
+          onClick={() => compose(true)}
+        >
+          <Plus />
+        </button>
+      </nav>
+      {creating && (
+        <Composer
+          close={() => compose(false)}
+          published={() => {
+            compose(false);
+            choose("");
+            switchTo("mural");
+            notify("Seu cartão está no Mural.");
+          }}
+        />
+      )}
+      {current && <OpenPostal key={id} card={current} close={close} />}{" "}
+      {notice && (
+        <div className="toast" role="status">
+          {notice}
+        </div>
+      )}
+    </>
+  );
 }
-export default function App(){
- const {posts,following,message,notifications,readNotifications,user}=useApp()
- const [tab,setTab]=useState<Tab>('feed'),[mine,setMine]=useState(false),[savedPage,setSavedPage]=useState(false),[query,setQuery]=useState(''),[story,setStory]=useState<Story|null>(null),[comments,setComments]=useState(''),[quick,setQuick]=useState(''),[creating,setCreating]=useState(false),[track,setTrack]=useState<MusicTrack>(),[notify,setNotify]=useState(false)
- const oldTop=useRef(posts[0]?.id)
- useEffect(()=>{if(oldTop.current!==posts[0]?.id&&posts[0]?.time==='Agora'){setTab('feed');setMine(false);window.scrollTo(0,0)}oldTop.current=posts[0]?.id},[posts])
- useEffect(() => {
-   const openHash = () => setQuick(location.hash.match(/^#post[-/](.+)$/)?.[1] ?? '')
-   openHash()
-   window.addEventListener('hashchange', openHash)
-   return () => window.removeEventListener('hashchange', openHash)
- }, [])
- const closePost = () => {
-   setQuick('')
-   if (/^#post[-/]/.test(location.hash)) {
-     history.replaceState(history.state, '', location.pathname + location.search)
-   }
- }
- const go=(t:Tab,saved=false)=>{setSavedPage(saved);setTab(t);setQuery('');window.scrollTo({top:0})}
- const search=(term:string)=>{closePost();go('explore');setQuery(term)}
- const create=(t?:MusicTrack)=>{setTrack(t);setCreating(true)}
- const showComments=(p:Post)=>{closePost();setComments(p.id)}
- const notifyOpen=()=>{readNotifications();setNotify(true)}
- const feed=mine?posts.filter(p=>following.includes(p.user.id)||p.user.id===user.id):posts
- const currentComments=posts.find(p=>p.id===comments),currentQuick=posts.find(p=>p.id===quick)
- return <><TopHeader home={()=>go('feed')} profile={()=>go('profile')} notify={notifyOpen}/><div className="shell"><aside className="left-rail"><nav className="side-nav" aria-label="Navegação principal">{navItems.map(({id,label,icon:Icon})=><button key={id} className={tab===id&&!savedPage?'active':''} onClick={()=>go(id)}><Icon/>{label}{tab===id&&!savedPage&&<i/>}</button>)}<button className={savedPage?'active':''} onClick={()=>go('profile',true)}><Bookmark/>Salvos</button><div className="side-line"/><button className="primary" onClick={()=>create()}><Plus/>Criar post</button></nav><div className="made"><span className="flag"/><span>Feito no Brasil</span></div></aside>
- <main className={'center '+(tab==='feed'?'feed':'')}>{tab==='feed'?<><div className="feed-heading"><h1>Seu feed<span>.</span></h1><FeedSwitch mine={mine} set={setMine}/></div><StoriesBar open={setStory} create={()=>create()}/>{feed.length?feed.map(p=><PostCard key={p.id} post={p} onComments={showComments} onLocation={search}/>):<div className="empty">Siga a galera para ver as publicações por aqui.</div>}</>:tab==='explore'?<ExploreView key={query} initialQuery={query} onPost={p=>setQuick(p.id)}/>:tab==='clips'?<ClipsView onUseAudio={create} onComments={showComments}/>:<ProfileView onPost={p=>setQuick(p.id)} initialSaved={savedPage}/>}</main><RightRail story={()=>setStory(stories[2])} search={search}/></div><BottomNav tab={tab} go={go} create={()=>create()}/>
- {story&&<StoryViewerModal key={story.id} story={story} onClose={()=>setStory(null)} onNext={()=>setStory(stories[stories.findIndex(s=>s.id===story.id)+1]??null)}/>}
- {currentComments&&<CommentsDrawer post={currentComments} onClose={()=>setComments('')}/>}
- {creating&&<CreatePostModal initialTrack={track} onClose={()=>setCreating(false)}/>}
- {currentQuick&&<Dialog title="Publicação" onClose={closePost}><PostCard post={currentQuick} onLocation={search} onComments={showComments}/></Dialog>}
- {notify&&<Dialog title="Notificações" onClose={()=>setNotify(false)}><div className="notice-list">{notifications.map((n,i)=><div key={n.id}><Image src={people[i+1].avatar}/><p>{n.text}</p><Bell size={16}/></div>)}</div></Dialog>}
- {message&&<div key={message.id} role="status" className="toast"><Check size={17}/>{message.text}</div>}</>
-}
-

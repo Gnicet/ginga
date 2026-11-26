@@ -1,7 +1,0 @@
-import {Bell,ChevronDown,Sparkles,Users} from 'lucide-react'
-import {useApp} from '../../context/AppContext'
-import Image from '../Image'
-export function Logo(){return <svg className="brand" viewBox="0 0 145 62" role="img" aria-label="Ginga"><g transform="translate(4 4) skewX(-10)" fill="currentColor"><text x="2" y="43" fontSize="54" fontFamily="Georgia,serif" fontStyle="italic" fontWeight="bold" letterSpacing="-4.5">ginga</text><path d="M11 51q39-8 82 0-43-3-83 4z"/><path d="M116 11q-3-10 5-9 6 2-1 11 9-9 12-3 3 7-9 8 12 0 10 6-3 7-12-2 5 11-2 12-7 0-4-12-7 10-11 5-4-5 8-11-13 2-12-4 0-6 16-1"/></g></svg>}
-export default function TopHeader({home,profile,notify}:{home:()=>void;profile:()=>void;notify:()=>void}){const {user,read}=useApp();return <header className="top"><div className="top-inner"><button aria-label="Ginga, início" onClick={home}><Logo/></button><span className="tagline">O nosso jeito de mostrar o mundo.</span><div className="header-actions"><button className="bell" onClick={notify} aria-label="Notificações"><Bell size={20}/>{!read&&<i/>}</button><span className="header-rule"/><button className="account" onClick={profile}><Image src={user.avatar} alt=""/><b>@{user.handle}</b><ChevronDown size={15}/></button></div></div></header>}
-export function FeedSwitch({mine,set}:{mine:boolean;set:(b:boolean)=>void}){return <div className="feed-switch"><button className={!mine?'chosen':''} onClick={()=>set(false)}><Sparkles/>Pra Você</button><button className={mine?'chosen':''} onClick={()=>set(true)}><Users/>Minha Galera</button></div>}
-
