@@ -1,3 +1,4 @@
+import { useAccess } from "./Access";
 import { useState } from "react";
 import { Moon, Sun, Disc3, Stamp as StampIcon } from "lucide-react";
 import { usePlaza } from "../context/Praca";
@@ -5,6 +6,8 @@ import { rooms, tracks, trackUrl } from "../data/praca";
 import { Postal, Stamp } from "./Postal";
 import { Player } from "./Audio";
 export function Passaporte({ open }: { open: (id: string) => void }) {
+  const { account, exit, rename } = useAccess();
+  const [accountError, report] = useState("");
   const { state, set } = usePlaza(),
     p = state.profile,
     [saved, tab] = useState(false),
@@ -26,9 +29,18 @@ export function Passaporte({ open }: { open: (id: string) => void }) {
           <h2>{p.name}</h2>
           <Stamp city={p.city} />
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const next = name.trim();
+              if (account && next) {
+                try {
+                  await rename(next);
+                  report("");
+                } catch {
+                  report("Não foi possível salvar o nome da conta.");
+                  return;
+                }
+              }
               if (next)
                 set((s) => ({
                   ...s,
@@ -54,6 +66,20 @@ export function Passaporte({ open }: { open: (id: string) => void }) {
               </button>
             )}
           </form>
+          {account && <small>{account.email}</small>}
+          <button
+            className="outline"
+            onClick={() =>
+              void exit().catch(() =>
+                report(
+                  "Não foi possível sair. Confira a conexão e tente novamente.",
+                ),
+              )
+            }
+          >
+            {account ? "Sair da conta" : "Entrar ou criar conta"}
+          </button>
+          {accountError && <p role="alert">{accountError}</p>}
           <button
             className="outline"
             onClick={() => set((s) => ({ ...s, night: !s.night }))}

@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useAccess } from "../components/Access";
 import { seed } from "../data/praca";
 import type { Card, Plaza } from "../types/praca";
 const database = () =>
@@ -15,7 +16,17 @@ const database = () =>
     request.onerror = () => reject(request.error);
   });
 function usePlazaModel() {
-  const [state, set] = useState<Plaza>(seed);
+  const { account } = useAccess();
+  const key = account ? "conta:" + account.id : "estado";
+  const [state, set] = useState<Plaza>(() =>
+    account
+      ? {
+          ...seed,
+          profile: { ...seed.profile, name: account.name, city: account.city },
+          cards: seed.cards.map((c) => ({ ...c, mine: false })),
+        }
+      : seed,
+  );
   const [db, connect] = useState<IDBDatabase>();
   const [ready, start] = useState(false);
   const [error, report] = useState("");
@@ -32,10 +43,27 @@ function usePlazaModel() {
         const request = value
           .transaction("mural")
           .objectStore("mural")
-          .get("estado");
+          .get(key);
         request.onsuccess = () => {
           if (active) {
-            if (request.result) set(request.result);
+            if (request.result) {
+              const cached: Plaza = request.result;
+              set(
+                account
+                  ? {
+                      ...cached,
+                      profile: {
+                        ...cached.profile,
+                        name: account.name,
+                        city: account.city,
+                      },
+                      cards: cached.cards.map((c) =>
+                        c.mine ? { ...c, author: account.name } : c,
+                      ),
+                    }
+                  : cached,
+              );
+            }
             connect(value);
             start(true);
           }
@@ -62,7 +90,7 @@ function usePlazaModel() {
     document.documentElement.dataset.theme = state.night ? "noite" : "dia";
     if (db) {
       const tx = db.transaction("mural", "readwrite");
-      tx.objectStore("mural").put(state, "estado");
+      tx.objectStore("mural").put(state, key);
       tx.onabort = () =>
         report("Sem espaço para salvar esta alteração no dispositivo.");
     }

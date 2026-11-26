@@ -1,3 +1,4 @@
+import { accountApi, currentAccount } from "./accounts.mjs";
 const desks = new Map(
   ["cafe", "bola", "som", "causos"].map((id) => [
     id,
@@ -7,6 +8,17 @@ const desks = new Map(
 const MAX_BYTES = 1500000;
 export function roomApi(req, res, next) {
   const url = new URL(req.url, "http://localhost");
+  if (url.pathname !== "/api/rodas" && !url.pathname.startsWith("/api/rodas/"))
+    return next();
+  const account = currentAccount(req);
+  if (!account) {
+    res.writeHead(401, {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    });
+    res.end(JSON.stringify({ error: "Entre para participar das Rodas." }));
+    return;
+  }
   if (url.pathname === "/api/rodas" && req.method === "GET") {
     const rooms = Object.fromEntries(
       [...desks].map(([id, desk]) => [
@@ -66,15 +78,16 @@ export function roomApi(req, res, next) {
       !data.name.trim()
     )
       return send(400, { error: "Participante inválido" });
-    const name = data.name.trim().slice(0, 60),
+    const seatId = account.id + ":" + data.id;
+    const name = account.name,
       now = Date.now();
     for (const [id, p] of desk.guests)
       if (now - p.seen > 20000) desk.guests.delete(id);
     if (data.leave) {
-      desk.guests.delete(data.id);
+      desk.guests.delete(seatId);
       return send(200, { ok: true });
     }
-    desk.guests.set(data.id, { id: data.id, name, seen: now });
+    desk.guests.set(seatId, { id: seatId, name, seen: now });
     if (data.message) {
       const m = data.message,
         text = typeof m.text === "string" ? m.text.trim().slice(0, 1000) : "",
@@ -111,9 +124,11 @@ export default function roomsPlugin() {
   return {
     name: "praca-rodas",
     configureServer(server) {
+      server.middlewares.use(accountApi);
       server.middlewares.use(roomApi);
     },
     configurePreviewServer(server) {
+      server.middlewares.use(accountApi);
       server.middlewares.use(roomApi);
     },
   };

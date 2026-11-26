@@ -6,6 +6,7 @@ on:
     paths:
       - 'android/**'
       - 'src/**'
+      - '*.mjs'
       - 'public/**'
       - 'package*.json'
       - 'capacitor.config.json'
@@ -27,8 +28,10 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm ci
+      - run: node --test accounts.test.mjs
       - run: npm run android:sync
         env:
+          VITE_API_ORIGIN: ${{ vars.VITE_API_ORIGIN }}
           VITE_RODAS_ORIGIN: ${{ vars.VITE_RODAS_ORIGIN }}
       - run: bash gradlew assembleDebug
         working-directory: android

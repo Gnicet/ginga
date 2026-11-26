@@ -1,4 +1,5 @@
-import {roomRequest} from "../roomRequest";
+import { useAccess } from "./Access";
+import { apiRequest } from "../roomRequest";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Send } from "lucide-react";
 import { rooms } from "../data/praca";
@@ -7,15 +8,16 @@ import type { RoomEvent, RoomSnapshot, Guest } from "../types/praca";
 import { Player, Recorder } from "./Audio";
 type Room = (typeof rooms)[number];
 export function Rodas() {
+  const { account, exit } = useAccess();
   const [room, enter] = useState<Room>(),
     { set } = usePlaza();
   const [seats, seat] = useState<Record<string, Guest[]>>({});
   useEffect(() => {
-    if (room) return;
+    if (room || !account) return;
     const controller = new AbortController();
     const refresh = async () => {
       try {
-        const r = await roomRequest("/api/rodas", { signal: controller.signal });
+        const r = await apiRequest("/api/rodas", { signal: controller.signal });
         if (r.ok) seat(await r.json());
       } catch {
         /* The lobby remains navigable while reconnecting. */
@@ -27,7 +29,7 @@ export function Rodas() {
       controller.abort();
       clearInterval(timer);
     };
-  }, [room]);
+  }, [room, account]);
   if (room) return <Sala room={room} leave={() => enter(undefined)} />;
   return (
     <div className="tables">
@@ -57,6 +59,10 @@ export function Rodas() {
             <button
               className="outline"
               onClick={() => {
+                if (!account) {
+                  void exit();
+                  return;
+                }
                 set((s) => ({
                   ...s,
                   profile: {
@@ -67,7 +73,8 @@ export function Rodas() {
                 enter(r);
               }}
             >
-              Sentar na roda <ArrowUpRight size={15} />
+              {account ? "Sentar na roda" : "Entrar para conversar"}{" "}
+              <ArrowUpRight size={15} />
             </button>
           </div>
         </article>
@@ -91,7 +98,7 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
     pending = useRef(false),
     initialized = useRef(false);
   async function sync(message?: Partial<RoomEvent>) {
-    const response = await roomRequest("/api/rodas/" + room.id, {
+    const response = await apiRequest("/api/rodas/" + room.id, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, id, after: cursor.current, message }),
@@ -133,7 +140,7 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
     return () => {
       alive.current = false;
       clearInterval(timer);
-      void roomRequest("/api/rodas/" + room.id, {
+      void apiRequest("/api/rodas/" + room.id, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, name, leave: true }),
