@@ -25,12 +25,14 @@ export type Media =
   | { kind: "voz"; audio: string }
   | { kind: "enquete"; options: string[]; counts: number[]; vote?: number };
 export interface Note {
+  owner?: string;
   id: string;
   name: string;
   text: string;
   audio?: string;
 }
 export interface Card {
+  owner?: string | null;
   id: string;
   author: string;
   mine?: boolean;
@@ -58,10 +60,12 @@ export interface Plaza {
   night: boolean;
 }
 export interface Guest {
+  owner?: string;
   id: string;
   name: string;
 }
 export interface RoomEvent {
+  owner?: string;
   id: string;
   name: string;
   text: string;
@@ -69,6 +73,7 @@ export interface RoomEvent {
   reaction?: string;
 }
 export interface RoomSnapshot {
+  visibleIds?: string[];
   guests: Guest[];
   messages: RoomEvent[];
 }

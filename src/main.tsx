@@ -4,6 +4,7 @@ import { Access, useAccess } from "./components/Access";
 import App from "./App";
 import { PlazaProvider } from "./context/Praca";
 import "./index.css";
+import { PublicDeletion } from "./components/Community";
 function SessionApp() {
   const { account } = useAccess();
   return (
@@ -14,8 +15,8 @@ function SessionApp() {
 }
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <Access>
+    {new URLSearchParams(location.search).has("excluir-conta") ? <PublicDeletion /> : <Access>
       <SessionApp />
-    </Access>
+    </Access>}
   </React.StrictMode>,
 );

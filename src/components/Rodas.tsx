@@ -6,6 +6,7 @@ import { rooms } from "../data/praca";
 import { usePlaza } from "../context/Praca";
 import type { RoomEvent, RoomSnapshot, Guest } from "../types/praca";
 import { Player, Recorder } from "./Audio";
+import { CommunityActions } from "./Community";
 type Room = (typeof rooms)[number];
 export function Rodas() {
   const { account, exit } = useAccess();
@@ -108,6 +109,11 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
     if (!alive.current) return;
     present(data.guests);
     fail("");
+    if (data.visibleIds) {
+      const visible = new Set(data.visibleIds);
+      update(old => old.filter(m => visible.has(m.id)));
+      float(old => old.filter(m => visible.has(m.id)));
+    }
     if (data.messages.length) {
       const last = data.messages.at(-1)!;
       cursor.current = last.id;
@@ -136,10 +142,12 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
     };
 
     poll();
+    window.addEventListener("praca-block",poll);
     const timer = setInterval(poll, 1800);
     return () => {
       alive.current = false;
       clearInterval(timer);
+      window.removeEventListener("praca-block",poll);
       void apiRequest("/api/rodas/" + room.id, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -182,6 +190,9 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
         {guests.length} na mesa · {guests.map((g) => g.name).join(", ")}
       </div>
       <small>Esta roda guarda até 60 recados recentes.</small>
+      <details><summary>Participantes</summary>{guests.map(g => <div key={g.id}>{g.name}
+        {g.owner && <CommunityActions kind="perfil" target={g.owner} owner={g.owner} />}
+      </div>)}</details>
       <div className="conversation" aria-live="polite">
         {messages
           .filter((m) => !m.reaction)
@@ -190,6 +201,7 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
               <b>{m.name}</b>
               <p>{m.text}</p>
               {m.audio && <Player src={m.audio} label="Recado de voz" wave />}
+              <CommunityActions kind="recado" target={m.id} owner={m.owner} room={room.id} />
             </div>
           ))}
         {!messages.some((m) => !m.reaction) && (

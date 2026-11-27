@@ -5,6 +5,7 @@ import { usePlaza } from "../context/Praca";
 import { rooms, tracks, trackUrl } from "../data/praca";
 import { Postal, Stamp } from "./Postal";
 import { Player } from "./Audio";
+import { BlockList, DeleteAccount } from "./Community";
 function RecoverySettings() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -104,6 +105,12 @@ export function Passaporte({ open }: { open: (id: string) => void }) {
           </form>
           {account && <small>{account.email}</small>}
           {account && <RecoverySettings />}
+          {account && <><BlockList /><details><summary>Excluir conta</summary>
+            <DeleteAccount email={account.email} done={() => {
+              window.alert("Sua conta foi excluída.");
+              window.dispatchEvent(new Event("praca-expired"));
+            }} />
+          </details></>}
           <button
             className="outline"
             onClick={() =>

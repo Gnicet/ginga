@@ -11,7 +11,7 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=4173 PRACA_DATA_DIR=/data
 RUN mkdir /data && chown node:node /data
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-COPY package.json backup.mjs accounts.mjs mural.mjs rooms.mjs server.mjs ./
+COPY package.json backup.mjs accounts.mjs community.mjs moderate.mjs mural.mjs rooms.mjs server.mjs ./
 COPY src/data/postais.json ./src/data/postais.json
 USER node
 EXPOSE 4173

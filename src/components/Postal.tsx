@@ -6,6 +6,7 @@ import { tracks, trackUrl } from "../data/praca";
 import { stickers, type Card, type Sticker } from "../types/praca";
 import { Player, Recorder } from "./Audio";
 import { Dialog } from "./shared/Dialog";
+import { CommunityActions } from "./Community";
 export const formatName = {
   visual: "Cartão visual",
   voz: "Recado de voz",
@@ -184,6 +185,7 @@ export function OpenPostal({ card, close }: { card: Card; close: () => void }) {
       <div className="split">
         <Postal card={card} detail />
         <section className="notes">
+          {card.shared && card.owner && <CommunityActions kind="cartao" target={card.id} owner={card.owner} />}
           <h3>
             Bilhetes <small>{card.notes.length}</small>
           </h3>
@@ -192,6 +194,7 @@ export function OpenPostal({ card, close }: { card: Card; close: () => void }) {
               <b>{n.name}</b>
               <p>{n.text}</p>
               {n.audio && <Player src={n.audio} label="Bilhete de voz" wave />}
+              {card.shared && n.owner && <CommunityActions kind="bilhete" target={n.id} owner={n.owner} />}
             </div>
           ))}
           <form

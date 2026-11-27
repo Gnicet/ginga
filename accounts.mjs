@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import { initializeCommunity, communityAction, removeAccount } from "./community.mjs";
 import { mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { homedir } from "node:os";
@@ -24,6 +25,7 @@ export function db() {
     CREATE TABLE IF NOT EXISTS sessions(digest TEXT PRIMARY KEY,account TEXT NOT NULL REFERENCES accounts(id),expires INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS session_expiry ON sessions(expires);
     CREATE TABLE IF NOT EXISTS recovery_codes(account TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,digest TEXT NOT NULL);`);
+  initializeCommunity(store);
   connection = store;
   return store;
 }
@@ -112,6 +114,36 @@ async function handle(req, res, route) {
   )
     throw problem(403, "Origem inválida.");
   const fields = await input(req);
+  if (["denunciar","bloquear","desbloquear","bloqueados"].includes(route)) {
+    const user = currentAccount(req);
+    if (!user) throw problem(401,"Entre novamente.");
+    return communityAction(db(),user.id,route,fields);
+  }
+  if (route === "excluir") {
+    limit(req);
+    const email = typeof fields.email === "string" ? fields.email.trim().toLowerCase() : "";
+    const password = fields.password;
+    if (fields.confirm !== "EXCLUIR" || typeof password !== "string" || !password || password.length > 256)
+      throw problem(400,"Confirme a exclusão e informe sua senha.");
+    const store = db();
+    const row = store.prepare("SELECT id,salt,hash FROM accounts WHERE email=?").get(email);
+    const candidate = await derive(password,row?.salt ?? dummySalt,64);
+    if (!row || !timingSafeEqual(candidate,Buffer.from(row.hash,"hex")))
+      throw problem(403,"Confira o e-mail e a senha.");
+    store.exec("BEGIN IMMEDIATE");
+    try {
+      if (!store.prepare("SELECT id FROM accounts WHERE id=? AND hash=?").get(row.id,row.hash))
+        throw problem(403,"Confira os dados da conta.");
+      const ownSession = currentAccount(req)?.id === row.id;
+      removeAccount(store,row.id);
+      store.exec("COMMIT");
+      if (ownSession) res.setHeader("Set-Cookie",cookie(req,"",0));
+    } catch (err) {
+      if (store.isTransaction) store.exec("ROLLBACK");
+      throw err;
+    }
+    return {account:null,deletedId:row.id};
+  }
   if (route === "codigo") {
     limit(req);
     const account = currentAccount(req);

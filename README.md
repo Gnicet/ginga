@@ -28,4 +28,14 @@ Para fazer uma cópia consistente mesmo com o servidor ativo, execute `node back
 
 ## Android
 
+### Segurança da comunidade
+
+Abra um cartão do Mural ou uma mensagem nas Rodas para denunciar conteúdo ou perfil e bloquear a pessoa. O bloqueio oculta conteúdo e presença entre as duas contas. Em **Passaporte → Pessoas bloqueadas** você pode desfazê-lo.
+
+No servidor, com o mesmo `PRACA_DATA_DIR`, use `node moderate.mjs listar` para consultar a fila. Use `node moderate.mjs arquivar ID` para encerrar uma denúncia ou `node moderate.mjs agir ID` para remover o conteúdo denunciado. Para denúncias de perfil, agir impede novas publicações e interações públicas daquela conta.
+
+A exclusão está em **Passaporte → Excluir conta** e na página pública `/?excluir-conta` do servidor. Exige e-mail, senha e confirmação. Ela remove dados vinculados à conta no banco ativo. Recados anteriores à introdução do identificador de autor nas Rodas guardam somente o nome exibido e expiram pelo limite do histórico. Cópias de segurança já existentes seguem o ciclo de retenção do operador.
+
+### Conectar o aplicativo
+
 O APK de desenvolvimento se conecta à porta 4173 pelo redirecionamento USB. Para apontar um build para outro servidor, configure `VITE_API_ORIGIN` com a origem HTTPS antes de executar `npm run android:sync`. Consulte [o guia Android](android/README.md).

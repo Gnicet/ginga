@@ -61,10 +61,12 @@ if (process.argv.includes("--fixture")) {
         body: body ? JSON.stringify(body) : undefined,
       });
     }
+    const passwords = new Map();
     async function user(name) {
+      passwords.set(name,randomUUID());
       const r = await call("/api/conta/cadastro", "", {
         email: name + "@example.test",
-        password: randomUUID(),
+        password: passwords.get(name),
         name,
         city: "Belém • PA",
       });
@@ -178,4 +180,31 @@ if (process.argv.includes("--fixture")) {
       ).src,
       voice.media.audio,
     );
+    const action = (who,route,fields) => call("/api/conta/"+route,who,fields);
+    const report = {kind:"cartao",target:picture.id,reason:"Spam ou golpe"};
+    assert.equal((await action(bia,"denunciar",report)).status,200);
+    assert.equal((await action(bia,"denunciar",report)).status,200);
+    const moderate = (...args) => spawnSync(process.execPath,["moderate.mjs",...args],{env:{...process.env,PRACA_DATA_DIR:dir},encoding:"utf8"});
+    const listing = moderate("listar");
+    assert.equal(listing.status,0,listing.stderr);
+    const ticket = JSON.parse(listing.stdout.trim());
+    assert.equal(ticket.target,picture.id);
+    assert.equal((await action(bia,"bloquear",{target:card.owner})).status,200);
+    assert.equal((await timeline(bia)).cards.some(c=>c.id===poll.id),false);
+    assert.equal((await call(media,bia)).status,404);
+    assert.equal((await send(bia,{id:poll.id,type:"vote",value:0})).status,404);
+    assert.deepEqual((await timeline(ana)).cards.find(c=>c.id===poll.id).notes,[]);
+    assert.deepEqual((await (await call("/api/rodas/cafe",bia,seat)).json()).messages,[]);
+    assert.equal((await action(bia,"desbloquear",{target:card.owner})).status,200);
+    assert.equal((await call(media,bia)).status,200);
+    assert.equal(moderate("agir",ticket.id).status,0);
+    assert.equal((await call(media,bia)).status,404);
+    assert.equal((await timeline(bia)).cards.some(c=>c.id===picture.id),false);
+    const deletion = {email:"Ana@example.test",password:passwords.get("Ana"),confirm:"EXCLUIR"};
+    assert.equal((await action("","excluir",{...deletion,password:"incorreta"})).status,403);
+    assert.equal((await action("","excluir",deletion)).status,200);
+    assert.equal((await call("/api/mural",ana)).status,401);
+    assert.equal((await timeline(bia)).cards.some(c=>c.owner===card.owner),false);
+    assert.equal((await call(b.cards.find(c=>c.id===voice.id).media.audio,bia)).status,404);
+    assert.deepEqual((await (await call("/api/rodas/cafe",bia,seat)).json()).messages,[]);
   });

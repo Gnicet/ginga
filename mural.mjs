@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db, currentAccount } from "./accounts.mjs";
+import { hiddenAccounts, restricted } from "./community.mjs";
 import examples from "./src/data/postais.json" with { type: "json" };
 
 const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
@@ -8,10 +9,6 @@ let initialized = false;
 function store() {
   const s = db();
   if (!initialized) {
-    s.exec(`CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, owner TEXT REFERENCES accounts(id), body TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS marks (card TEXT NOT NULL REFERENCES cards(id), account TEXT NOT NULL REFERENCES accounts(id),vote INTEGER, sticker TEXT, saved INTEGER DEFAULT 0, PRIMARY KEY(card,account));
-      CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, card TEXT NOT NULL REFERENCES cards(id), author TEXT NOT NULL REFERENCES accounts(id), text TEXT NOT NULL, audio TEXT);
-      CREATE TABLE IF NOT EXISTS mural_files (id TEXT PRIMARY KEY, body BLOB NOT NULL, mime TEXT NOT NULL);`);
     const insert = s.prepare("INSERT OR IGNORE INTO cards VALUES (?,NULL,?)");
     for (const card of [...examples].reverse())
       insert.run(card.id, JSON.stringify(card));
@@ -63,13 +60,14 @@ function mediaFile(s, uri, kind) {
   return "/api/mural/midia/" + id;
 }
 function snapshot(s, account) {
+  const hidden = hiddenAccounts(s, account.id);
   const rows = s
     .prepare(
       "SELECT cards.*,accounts.name FROM cards LEFT JOIN accounts ON accounts.id=cards.owner ORDER BY cards.rowid DESC",
     )
     .all();
   const cards = new Map(
-    rows.map((r) => {
+    rows.filter(r => !hidden.has(r.owner)).map((r) => {
       const c = JSON.parse(r.body);
       return [
         r.id,
@@ -77,6 +75,7 @@ function snapshot(s, account) {
           ...c,
           mine: r.owner === account.id,
           shared: true,
+          owner: r.owner,
           author: r.name ?? c.author,
         },
       ];
@@ -85,6 +84,7 @@ function snapshot(s, account) {
   const saved = [];
   for (const m of s.prepare("SELECT * FROM marks").iterate()) {
     const c = cards.get(m.card);
+    if (!c || hidden.has(m.account)) continue;
     if (m.vote !== null) c.media.counts[m.vote]++;
     if (m.sticker) c.counts[m.sticker] = (c.counts[m.sticker] ?? 0) + 1;
     if (m.account === account.id) {
@@ -95,17 +95,20 @@ function snapshot(s, account) {
   }
   for (const n of s
     .prepare(
-      "SELECT n.id,n.card,n.text,n.audio,a.name FROM notes n JOIN accounts a ON n.author=a.id ORDER BY n.rowid",
+      "SELECT n.id,n.card,n.text,n.audio,n.author,a.name FROM notes n JOIN accounts a ON n.author=a.id ORDER BY n.rowid",
     )
-    .iterate())
+    .iterate()) {
+    if (!cards.has(n.card) || hidden.has(n.author)) continue;
     cards
       .get(n.card)
       .notes.push({
         id: n.id,
+        owner: n.author,
         text: n.text,
         name: n.name,
         audio: n.audio || undefined,
       });
+  }
   return { cards: [...cards.values()], saved };
 }
 function publish(s, actor, c) {
@@ -159,9 +162,9 @@ function publish(s, actor, c) {
 }
 function interact(s, actor, action) {
   const row = s
-    .prepare("SELECT body FROM cards WHERE id=?")
+    .prepare("SELECT owner,body FROM cards WHERE id=?")
     .get(field(action.id, 80));
-  if (!row) invalid("Cartão indisponível.", 404);
+  if (!row || hiddenAccounts(s,actor.id).has(row.owner)) invalid("Cartão indisponível.", 404);
   if (action.type === "note") {
     const n = action.value;
     if (!n || !uuid.test(n.id)) invalid();
@@ -219,7 +222,10 @@ async function handle(req, path) {
   if (req.method === "GET") {
     if (path === "/api/mural") return snapshot(s, actor);
     const id = path.slice("/api/mural/midia/".length);
-    const f =
+    const hidden = hiddenAccounts(s,actor.id);
+    const ref = s.prepare(`SELECT owner,NULL AS author FROM cards WHERE coalesce(json_extract(body,'$.media.image'),json_extract(body,'$.media.audio'))=?
+      UNION ALL SELECT c.owner,n.author FROM notes n JOIN cards c ON c.id=n.card WHERE n.audio=?`).get(path,path);
+    const f = ref && !hidden.has(ref.owner) && !hidden.has(ref.author) &&
       path.startsWith("/api/mural/midia/") &&
       uuid.test(id) &&
       s.prepare("SELECT * FROM mural_files WHERE id=?").get(id);
@@ -254,6 +260,8 @@ async function handle(req, path) {
     invalid();
   }
   if (!action || typeof action !== "object") invalid();
+  if (!currentAccount(req)) invalid("Entre novamente.",401);
+  if (action.type !== "saved" && restricted(s,actor.id)) invalid("Sua conta está impedida de publicar.",403);
   s.exec("BEGIN IMMEDIATE");
   try {
     if (action.type === "publish") publish(s, actor, action.value);

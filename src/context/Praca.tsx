@@ -59,7 +59,7 @@ function usePlazaModel() {
                         name: account.name,
                         city: account.city,
                       },
-                      cards: cached.cards.map((c) =>
+                      cards: cached.cards.filter(c => !c.shared).map((c) =>
                         c.mine ? { ...c, author: account.name } : c,
                       ),
                     }
@@ -92,7 +92,7 @@ function usePlazaModel() {
     document.documentElement.dataset.theme = state.night ? "noite" : "dia";
     if (db) {
       const tx = db.transaction("mural", "readwrite");
-      tx.objectStore("mural").put(state, key);
+      tx.objectStore("mural").put(account ? {...state,cards:state.cards.filter(c=>!c.shared)} : state, key);
       tx.onabort = () =>
         report("Sem espaço para salvar esta alteração no dispositivo.");
     }
@@ -213,7 +213,7 @@ function usePlazaModel() {
     set((s) => ({ ...s, cards: [card, ...s.cards] }));
     return Promise.resolve(true);
   }
-  return { state, set, edit, save, publishCard, busy, ready, error };
+  return { state, set, edit, save, publishCard, refresh: () => sync(), busy, ready, error };
 }
 const Context = createContext<ReturnType<typeof usePlazaModel> | null>(null);
 export function PlazaProvider({ children }: { children: ReactNode }) {

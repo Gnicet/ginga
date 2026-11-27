@@ -14,7 +14,7 @@ export interface Account {
   city: string;
   email: string;
 }
-async function accountRequest(
+export async function accountRequest(
   route: string,
   form?: Record<string, string>,
 ) {

@@ -1,18 +1,13 @@
 import { muralApi } from "./mural.mjs";
+import { hiddenAccounts, restricted } from "./community.mjs";
 import { accountApi, currentAccount, db } from "./accounts.mjs";
 const desks = new Map(
   ["cafe", "bola", "som", "causos"].map((id) => [id, { guests: new Map() }]),
 );
-let historyReady = false;
-function history() {
-  const s = db();
-  if (!historyReady) {
-    s.exec(
-      "CREATE TABLE IF NOT EXISTS room_events(room TEXT NOT NULL,id TEXT NOT NULL,body TEXT NOT NULL,size INTEGER NOT NULL,PRIMARY KEY(room,id))",
-    );
-    historyReady = true;
-  }
-  return s;
+function visibleGuests(desk,hidden) {
+  const exists = db().prepare("SELECT 1 FROM accounts WHERE id=?");
+  return [...desk.guests.values()].filter(p => Date.now()-p.seen <= 20000 && !hidden.has(p.owner) && exists.get(p.owner))
+    .map(({id,name,owner}) => ({id,name,owner}));
 }
 const MAX_BYTES = 1500000;
 export function roomApi(req, res, next) {
@@ -29,12 +24,11 @@ export function roomApi(req, res, next) {
     return;
   }
   if (url.pathname === "/api/rodas" && req.method === "GET") {
+    const hidden = hiddenAccounts(db(),account.id);
     const rooms = Object.fromEntries(
       [...desks].map(([id, desk]) => [
         id,
-        [...desk.guests.values()]
-          .filter((p) => Date.now() - p.seen <= 20000)
-          .map(({ id, name }) => ({ id, name })),
+        visibleGuests(desk,hidden),
       ]),
     );
     res.writeHead(200, {
@@ -73,6 +67,7 @@ export function roomApi(req, res, next) {
     if (size <= MAX_BYTES) chunks.push(chunk);
   });
   req.on("end", () => {
+    if (!currentAccount(req)) return send(401,{error:"Entre novamente."});
     if (size > MAX_BYTES) return send(413, { error: "Gravação muito grande" });
     let data;
     try {
@@ -97,8 +92,9 @@ export function roomApi(req, res, next) {
       desk.guests.delete(seatId);
       return send(200, { ok: true });
     }
-    desk.guests.set(seatId, { id: seatId, name, seen: now });
+    desk.guests.set(seatId, { id: seatId, name, seen: now, owner: account.id });
     if (data.message) {
+      if (restricted(db(),account.id)) return send(403,{error:"Sua conta está impedida de publicar."});
       const m = data.message,
         text = typeof m.text === "string" ? m.text.trim().slice(0, 1000) : "",
         audio =
@@ -115,8 +111,8 @@ export function roomApi(req, res, next) {
         return send(400, { error: "Recado vazio" });
       if (typeof m.id !== "string" || m.id.length > 64)
         return send(400, { error: "Bilhete inválido" });
-      const s = history(),
-        body = JSON.stringify({ id: m.id, name, text, audio, reaction });
+      const s = db(),
+        body = JSON.stringify({ id: m.id, owner: account.id, name, text, audio, reaction });
       s.exec("BEGIN IMMEDIATE");
       try {
         s.prepare("INSERT OR IGNORE INTO room_events VALUES(?,?,?,?)").run(
@@ -137,14 +133,18 @@ export function roomApi(req, res, next) {
         return send(503, { error: "Não foi possível salvar o recado." });
       }
     }
-    const messages = history()
+    const hidden = hiddenAccounts(db(),account.id);
+    const visibleIds = db().prepare("SELECT id,json_extract(body,'$.owner') AS owner FROM room_events WHERE room=?")
+      .all(room).filter(row => !hidden.has(row.owner)).map(row => row.id);
+    const messages = db()
       .prepare(
         "SELECT body FROM room_events WHERE room=? AND rowid>coalesce((SELECT rowid FROM room_events WHERE room=? AND id=?),0) ORDER BY rowid",
       )
       .all(room, room, typeof data.after === "string" ? data.after : "")
-      .map((row) => JSON.parse(row.body));
+      .map((row) => JSON.parse(row.body)).filter(m => !hidden.has(m.owner));
     send(200, {
-      guests: [...desk.guests.values()].map(({ id, name }) => ({ id, name })),
+      visibleIds,
+      guests: visibleGuests(desk,hidden),
       messages,
     });
   });
