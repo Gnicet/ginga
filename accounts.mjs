@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import rules from "./src/data/regras.json" with { type: "json" };
-import { initializeCommunity, communityAction, removeAccount } from "./community.mjs";
+import { initializeCommunity, communityAction, removeAccount, friendAction } from "./community.mjs";
 import { mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { homedir } from "node:os";
@@ -122,6 +122,11 @@ async function handle(req, res, route) {
   )
     throw problem(403, "Origem inválida.");
   const fields = await input(req);
+  if (route === "amizade") {
+    const actor = currentAccount(req);
+    if (!actor) throw problem(401,"Entre para gerenciar suas amizades.");
+    return friendAction(db(),actor.id,fields);
+  }
   if (route === "aceitar-regras") {
     const account = currentAccount(req);
     if (!account) throw problem(401,"Entre novamente.");

@@ -20,6 +20,7 @@ export function Policies({privacy}: {privacy: boolean}) {
       <h2>O que as outras pessoas veem</h2>
       <p>Quando você publica um cartão, outras contas podem ver seu nome, a cidade indicada no cartão e o conteúdo que você escolheu enviar, como fotos, enquetes e gravações. Nas Rodas, participantes veem o nome de quem está na mesa, os recados e as reações. Os bilhetes aparecem junto ao cartão. Votos e adesivos contribuem para as contagens exibidas.</p>
       <p>Seu e-mail, seus guardados e sua lista de bloqueios ficam restritos à conta e ao serviço. As denúncias vão para quem modera a Praça. O servidor registra a conta, a versão das regras e o momento do aceite para verificar quem pode publicar.</p>
+      <p>Os pedidos de amizade e as amizades ficam visíveis às duas contas envolvidas. Bloquear alguém encerra a amizade ou o pedido pendente. A exclusão da conta remove esses vínculos.</p>
       <h2>Microfone e armazenamento no aparelho</h2>
       <p>Ao iniciar uma gravação, a Praça pede acesso ao microfone. Você pode ouvir a gravação antes de enviá-la. Preferências e conteúdo criado no modo visitante ficam no armazenamento do app ou navegador. Limpar esse armazenamento apaga os dados locais de visitante.</p>
       <h2>Por quanto tempo os dados ficam guardados</h2>

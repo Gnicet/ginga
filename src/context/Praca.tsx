@@ -9,7 +9,7 @@ import {
 import { useAccess } from "../components/Access";
 import { apiRequest } from "../roomRequest";
 import { seed } from "../data/praca";
-import type { Card, Plaza } from "../types/praca";
+import type { Card, Plaza, Friendship } from "../types/praca";
 const database = () =>
   new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open("praca-cultural", 1);
@@ -113,6 +113,7 @@ function usePlazaModel() {
     active = useRef(true),
     pending = useRef(0);
   const [busy, working] = useState(false);
+  const [friends, setFriends] = useState<Friendship[] | null>(null);
   type Action = {
     type: "vote" | "sticker" | "note" | "publish" | "saved";
     value: unknown;
@@ -140,6 +141,7 @@ function usePlazaModel() {
         const payload = await response.json();
         if (!response.ok) throw Error(payload.error || "Mural indisponível.");
         if (active.current) {
+          setFriends(payload.friends ?? []);
           set((previous) => {
             const remoteIds = new Set(payload.cards.map((c: Card) => c.id));
             const local = previous.cards.filter(
@@ -214,7 +216,7 @@ function usePlazaModel() {
     set((s) => ({ ...s, cards: [card, ...s.cards] }));
     return Promise.resolve(true);
   }
-  return { state, set, edit, save, publishCard, refresh: () => sync(), busy, ready, error };
+  return { state, set, edit, save, publishCard, friends, refresh: () => sync(), busy, ready, error };
 }
 const Context = createContext<ReturnType<typeof usePlazaModel> | null>(null);
 export function PlazaProvider({ children }: { children: ReactNode }) {

@@ -7,6 +7,7 @@ import { Postal, Stamp } from "./Postal";
 import { Player } from "./Audio";
 import { PolicyLinks } from "./Policies";
 import { BlockList, DeleteAccount } from "./Community";
+import { Friends } from "./Friends";
 function RecoverySettings() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -175,6 +176,7 @@ export function Passaporte({ open }: { open: (id: string) => void }) {
               ))}
           </div>
         </section>
+        {account && <Friends />}
       </div>
       <div className="segments tabs">
         <button aria-pressed={!saved} onClick={() => tab(false)}>

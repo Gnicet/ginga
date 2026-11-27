@@ -77,3 +77,9 @@ export interface RoomSnapshot {
   guests: Guest[];
   messages: RoomEvent[];
 }
+export interface Friendship {
+  id: string;
+  name: string;
+  link: string;
+  status: "amigo" | "enviado" | "recebido";
+}

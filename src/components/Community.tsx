@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { accountRequest, useAccess } from "./Access";
 import { usePlaza } from "../context/Praca";
+import { FriendActions } from "./Friends";
 
 export function CommunityActions({kind, target, owner, room = ""}: {
   kind: "cartao" | "bilhete" | "recado" | "perfil"; target: string; owner?: string | null; room?: string;
@@ -28,7 +29,7 @@ export function CommunityActions({kind, target, owner, room = ""}: {
     } catch (err) { setMessage(err instanceof Error ? err.message : "Falha de conexão."); }
     finally { setBusy(false); }
   }
-  return <details>
+  return <>{owner && <FriendActions target={owner} />}<details>
     <summary>Denunciar{owner && " ou bloquear"}</summary>
     {owner && kind !== "perfil" && <label>O que deseja denunciar?
       <select value={subject} onChange={e => setSubject(e.target.value)}>
@@ -41,7 +42,7 @@ export function CommunityActions({kind, target, owner, room = ""}: {
     <button className="outline" disabled={busy} onClick={() => void act(false)}>Enviar denúncia</button>
     {owner && <button className="outline" disabled={busy} onClick={() => void act(true)}>Bloquear pessoa</button>}
     {message && <p role="status">{message}</p>}
-  </details>;
+  </details></>;
 }
 
 export function BlockList() {

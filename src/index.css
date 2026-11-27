@@ -1073,3 +1073,5 @@ textarea {
 .policy-page { max-width: 48rem; line-height: 1.65; }
 .policy-page h2 { margin: 1.5rem 0 .35rem; }
 .policy-page li { list-style: disc; margin: .65rem 0 .65rem 1.5rem; }
+.friend-actions, .friend-row { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.friend-row { justify-content: space-between; margin-block: .65rem; }

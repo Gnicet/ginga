@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db, currentAccount, acceptedRules } from "./accounts.mjs";
-import { hiddenAccounts, restricted } from "./community.mjs";
+import { hiddenAccounts, restricted, friendList } from "./community.mjs";
 import examples from "./src/data/postais.json" with { type: "json" };
 
 const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
@@ -109,7 +109,7 @@ function snapshot(s, account) {
         audio: n.audio || undefined,
       });
   }
-  return { cards: [...cards.values()], saved };
+  return { cards: [...cards.values()], saved, friends: friendList(s,account.id) };
 }
 function publish(s, actor, c) {
   if (!c || !uuid.test(c.id)) invalid();

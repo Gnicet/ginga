@@ -7,6 +7,18 @@ export function initializeCommunity(s) {
     CREATE TABLE IF NOT EXISTS mural_files(id TEXT PRIMARY KEY,body BLOB NOT NULL,mime TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS room_events(room TEXT NOT NULL,id TEXT NOT NULL,body TEXT NOT NULL,size INTEGER NOT NULL,PRIMARY KEY(room,id));
     CREATE TABLE IF NOT EXISTS blocks(actor TEXT REFERENCES accounts(id) ON DELETE CASCADE,target TEXT REFERENCES accounts(id) ON DELETE CASCADE,PRIMARY KEY(actor,target));
+    CREATE TABLE IF NOT EXISTS friendships(
+      id TEXT PRIMARY KEY,
+      sender TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      recipient TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      accepted INTEGER NOT NULL DEFAULT 0 CHECK(accepted IN (0,1)),
+      CHECK(sender<>recipient));
+    CREATE UNIQUE INDEX IF NOT EXISTS friendship_pair ON friendships(min(sender,recipient),max(sender,recipient));
+    CREATE INDEX IF NOT EXISTS friendship_sender ON friendships(sender);
+    CREATE INDEX IF NOT EXISTS friendship_recipient ON friendships(recipient);
+    CREATE TRIGGER IF NOT EXISTS clear_blocked_friendship AFTER INSERT ON blocks BEGIN
+      DELETE FROM friendships WHERE (sender=NEW.actor AND recipient=NEW.target) OR (sender=NEW.target AND recipient=NEW.actor);
+    END;
     CREATE TABLE IF NOT EXISTS reports(id TEXT PRIMARY KEY,reporter TEXT REFERENCES accounts(id) ON DELETE CASCADE,kind TEXT,target TEXT,room TEXT,reason TEXT,created INTEGER,UNIQUE(reporter,kind,target,room));
     CREATE TABLE IF NOT EXISTS restrictions(account TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE);`);
 }
@@ -19,6 +31,44 @@ export function restricted(s, actor) {
 }
 function reject(status, message) {
   throw Object.assign(Error(message), { status });
+}
+export function friendList(s, actor) {
+  return s.prepare(`SELECT f.id AS link,a.id,a.name,
+    CASE WHEN accepted=1 THEN 'amigo' WHEN sender=? THEN 'enviado' ELSE 'recebido' END AS status
+    FROM friendships f JOIN accounts a ON a.id=CASE WHEN sender=? THEN recipient ELSE sender END
+    WHERE sender=? OR recipient=? ORDER BY a.name COLLATE NOCASE,a.id`).all(actor,actor,actor,actor);
+}
+
+export function friendAction(s, actor, fields) {
+  const {action,target,link} = fields;
+  if (typeof target !== "string" || target === actor) reject(400,"Escolha outra pessoa.");
+  s.exec("BEGIN IMMEDIATE");
+  try {
+    if (action === "convidar") {
+      if (restricted(s,actor)) reject(403,"Sua conta está impedida de enviar convites.");
+      if (hiddenAccounts(s,actor).has(target) || !targetInfo(s,"perfil",target,""))
+        reject(404,"Pessoa indisponível.");
+      s.prepare("INSERT INTO friendships(id,sender,recipient) VALUES(?,?,?) ON CONFLICT DO NOTHING").run(randomUUID(),actor,target);
+    } else {
+      if (typeof link !== "string") reject(400,"Pedido inválido.");
+      let result;
+      if (action === "aceitar")
+        result = s.prepare("UPDATE friendships SET accepted=1 WHERE id=? AND recipient=? AND sender=?").run(link,actor,target);
+      else if (action === "recusar")
+        result = s.prepare("DELETE FROM friendships WHERE id=? AND recipient=? AND sender=? AND accepted=0").run(link,actor,target);
+      else if (action === "cancelar")
+        result = s.prepare("DELETE FROM friendships WHERE id=? AND sender=? AND recipient=? AND accepted=0").run(link,actor,target);
+      else if (action === "desfazer")
+        result = s.prepare("DELETE FROM friendships WHERE id=? AND accepted=1 AND ((sender=? AND recipient=?) OR (sender=? AND recipient=?))").run(link,actor,target,target,actor);
+      else reject(400,"Ação inválida.");
+      if (!result.changes) reject(409,"Este pedido ou amizade mudou. Confira a lista atualizada.");
+    }
+    s.exec("COMMIT");
+  } catch (error) {
+    s.exec("ROLLBACK");
+    throw error;
+  }
+  return {ok:true};
 }
 export function targetInfo(s, kind, id, room) {
   switch (kind) {
