@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - 'Dockerfile'
+      - '.dockerignore'
       - 'android/**'
       - 'src/**'
       - '*.mjs'
@@ -37,7 +39,8 @@ jobs:
         run: |
           docker build -t praca:teste .
           docker run -d --name praca-teste -p 127.0.0.1:4173:4173 -v praca-teste:/data praca:teste
-          curl --fail --retry 8 --retry-connrefused --retry-delay 1 http://127.0.0.1:4173/api/conta/sessao
+          trap 'docker logs praca-teste' ERR
+          curl --fail --retry 8 --retry-all-errors --retry-delay 1 http://127.0.0.1:4173/api/conta/sessao
           curl --fail --silent -c /tmp/praca-session -H 'Content-Type: application/json' -d '{"name":"Teste","city":"Recife","email":"ci@example.test","password":"teste-local-efemero"}' http://127.0.0.1:4173/api/conta/cadastro >/dev/null
           curl --fail --silent -b /tmp/praca-session http://127.0.0.1:4173/api/mural | jq -e '.cards | length >= 8'
       - run: bash gradlew assembleDebug
