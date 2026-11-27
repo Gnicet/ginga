@@ -1,10 +1,46 @@
-import { useAccess } from "./Access";
+import { issueRecoveryCode, useAccess } from "./Access";
 import { useState } from "react";
 import { Moon, Sun, Disc3, Stamp as StampIcon } from "lucide-react";
 import { usePlaza } from "../context/Praca";
 import { rooms, tracks, trackUrl } from "../data/praca";
 import { Postal, Stamp } from "./Postal";
 import { Player } from "./Audio";
+function RecoverySettings() {
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  return <details onToggle={(event) => {
+    if (!event.currentTarget.open) {
+      setPassword("");
+      setCode("");
+      setError("");
+    }
+  }}>
+    <summary>Recuperação de conta</summary>
+    <p>Guarde um código para recuperar a conta se esquecer a senha. Cada novo código substitui o anterior.</p>
+    <form onSubmit={async (event) => {
+      event.preventDefault();
+      if (busy) return;
+      setBusy(true);
+      setError("");
+      setCode("");
+      try {
+        setCode(await issueRecoveryCode(password));
+        setPassword("");
+      } catch (err) {
+        setError(err instanceof TypeError ? "Confira sua conexão." : err instanceof Error ? err.message : "Falha ao gerar o código.");
+      } finally {
+        setBusy(false);
+      }
+    }}>
+      <label>Senha atual<input type="password" required autoComplete="current-password" maxLength={256} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+      <button className="outline" disabled={busy}>{busy ? "Gerando…" : "Gerar código de recuperação"}</button>
+    </form>
+    {code && <label>Salve este código em um lugar seguro<input readOnly value={code} onFocus={(e) => e.target.select()} /></label>}
+    {error && <p role="alert">{error}</p>}
+  </details>;
+}
 export function Passaporte({ open }: { open: (id: string) => void }) {
   const { account, exit, rename } = useAccess();
   const [accountError, report] = useState("");
@@ -67,6 +103,7 @@ export function Passaporte({ open }: { open: (id: string) => void }) {
             )}
           </form>
           {account && <small>{account.email}</small>}
+          {account && <RecoverySettings />}
           <button
             className="outline"
             onClick={() =>

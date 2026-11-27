@@ -14,10 +14,10 @@ export interface Account {
   city: string;
   email: string;
 }
-async function accountCall(
+async function accountRequest(
   route: string,
   form?: Record<string, string>,
-): Promise<Account | null> {
+) {
   const res = await apiRequest(
     "/api/conta/" + route,
     form
@@ -30,7 +30,13 @@ async function accountCall(
   );
   const data = await res.json();
   if (!res.ok) throw Error(data.error || "Não foi possível concluir.");
-  return data.account;
+  return data;
+}
+async function accountCall(route: string, form?: Record<string, string>): Promise<Account | null> {
+  return (await accountRequest(route, form)).account;
+}
+export async function issueRecoveryCode(password: string): Promise<string> {
+  return (await accountRequest("codigo", { password })).code;
 }
 const AccessContext = createContext<{
   account: Account | null;
@@ -132,6 +138,9 @@ function Entry({
   submit: (route: string, data: Record<string, string>) => Promise<void>;
 }) {
   const [signup, mode] = useState(false),
+    [recovering, recover] = useState(false),
+    [code, setCode] = useState(""),
+    [notice, notify] = useState(""),
     [email, mail] = useState(""),
     [password, pass] = useState(""),
     [name, nick] = useState(""),
@@ -144,7 +153,17 @@ function Entry({
     if (busy) return;
     wait(true);
     report("");
+    notify("");
     try {
+      if (recovering) {
+        await accountCall("recuperar", { email, code, password });
+        setCode("");
+        pass("");
+        show(false);
+        recover(false);
+        notify("Senha alterada. Entre com a nova senha e gere outro código no Passaporte.");
+        return;
+      }
       await submit(
         signup ? "cadastro" : "entrar",
         signup ? { email, password, name, city } : { email, password },
@@ -175,7 +194,7 @@ function Entry({
         <span className="stamp">Salvador • BA</span>
       </section>
       <section className="access-form">
-        <h2>{signup ? "Crie seu passaporte" : "Entre na Praça"}</h2>
+        <h2>{recovering ? "Recuperar conta" : signup ? "Crie seu passaporte" : "Entre na Praça"}</h2>
         <form onSubmit={send}>
           {signup && (
             <>
@@ -212,15 +231,18 @@ function Entry({
               onChange={(e) => mail(e.target.value)}
             />
           </label>
+          {recovering && <label>Código salvo no Passaporte
+            <input required autoCapitalize="none" spellCheck={false} value={code} onChange={(e) => setCode(e.target.value)} />
+          </label>}
           <label>
-            Senha{signup ? " (mínimo de 10 caracteres)" : ""}
+            {recovering ? "Nova senha" : "Senha"}{signup || recovering ? " (mínimo de 10 caracteres)" : ""}
             <span className="password-field">
               <input
                 required
-                minLength={signup ? 10 : 1}
+                minLength={signup || recovering ? 10 : 1}
                 maxLength={256}
                 type={visible ? "text" : "password"}
-                autoComplete={signup ? "new-password" : "current-password"}
+                autoComplete={signup || recovering ? "new-password" : "current-password"}
                 value={password}
                 onChange={(e) => pass(e.target.value)}
               />
@@ -234,21 +256,32 @@ function Entry({
             </span>
           </label>
           {(message || error) && <p role="alert">{message || error}</p>}
+          {notice && <p role="status">{notice}</p>}
           <button className="primary" disabled={busy}>
-            {busy ? "Aguarde…" : signup ? "Criar conta" : "Entrar"}
+            {busy ? "Aguarde…" : recovering ? "Alterar senha" : signup ? "Criar conta" : "Entrar"}
           </button>
         </form>
         <button
           className="access-link"
           disabled={busy}
           onClick={() => {
-            mode(!signup);
+            mode(recovering ? false : !signup);
+            recover(false);
+            setCode("");
+            notify("");
             pass("");
             report("");
           }}
         >
-          {signup ? "Já tenho conta" : "Criar minha conta"}
+          {signup || recovering ? "Voltar para entrar" : "Criar minha conta"}
         </button>
+        {!signup && !recovering && <button className="access-link" disabled={busy} onClick={() => {
+          recover(true);
+          pass("");
+          show(false);
+          notify("");
+          report("");
+        }}>Esqueci minha senha</button>}
         <button className="outline" disabled={busy} onClick={guest}>
           Explorar como visitante
         </button>

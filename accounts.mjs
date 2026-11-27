@@ -22,7 +22,8 @@ export function db() {
   store.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
     CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,name TEXT NOT NULL,city TEXT NOT NULL, salt TEXT NOT NULL, hash TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS sessions(digest TEXT PRIMARY KEY,account TEXT NOT NULL REFERENCES accounts(id),expires INTEGER NOT NULL);
-    CREATE INDEX IF NOT EXISTS session_expiry ON sessions(expires);`);
+    CREATE INDEX IF NOT EXISTS session_expiry ON sessions(expires);
+    CREATE TABLE IF NOT EXISTS recovery_codes(account TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,digest TEXT NOT NULL);`);
   connection = store;
   return store;
 }
@@ -111,6 +112,47 @@ async function handle(req, res, route) {
   )
     throw problem(403, "Origem inválida.");
   const fields = await input(req);
+  if (route === "codigo") {
+    limit(req);
+    const account = currentAccount(req);
+    if (!account) throw problem(401, "Entre novamente.");
+    const row = db().prepare("SELECT salt,hash FROM accounts WHERE id=?").get(account.id);
+    if (typeof fields.password !== "string" || fields.password.length > 256)
+      throw problem(400, "Informe a senha atual.");
+    const candidate = await derive(fields.password, row.salt, 64);
+    if (!timingSafeEqual(candidate, Buffer.from(row.hash, "hex")) || !currentAccount(req))
+      throw problem(403, "Confira a senha atual e a sessão.");
+    const code = randomBytes(16).toString("hex");
+    db().prepare("INSERT OR REPLACE INTO recovery_codes(account,digest) VALUES(?,?)").run(account.id, digest(code));
+    return { code };
+  }
+  if (route === "recuperar") {
+    limit(req);
+    const email = typeof fields.email === "string" ? fields.email.trim().toLowerCase() : "";
+    const code = typeof fields.code === "string" ? fields.code.trim().toLowerCase() : "";
+    if (typeof fields.password !== "string" || fields.password.length < 10 || fields.password.length > 256)
+      throw problem(400, "Use uma nova senha de 10 a 256 caracteres.");
+    const invalidCode = () => problem(400, "Confira o e-mail e o código de recuperação.");
+    if (!/^[0-9a-f]{32}$/.test(code)) throw invalidCode();
+    const key = digest(code);
+    const row = db().prepare("SELECT a.id FROM accounts a JOIN recovery_codes r ON a.id=r.account WHERE a.email=? AND r.digest=?").get(email, key);
+    if (!row) throw invalidCode();
+    const salt = randomBytes(16).toString("hex");
+    const hash = await derive(fields.password, salt, 64);
+    const store = db();
+    store.exec("BEGIN IMMEDIATE");
+    try {
+      if (!store.prepare("DELETE FROM recovery_codes WHERE account=? AND digest=?").run(row.id, key).changes)
+        throw invalidCode();
+      store.prepare("UPDATE accounts SET salt=?,hash=? WHERE id=?").run(salt, hash.toString("hex"), row.id);
+      store.prepare("DELETE FROM sessions WHERE account=?").run(row.id);
+      store.exec("COMMIT");
+    } catch (error) {
+      store.exec("ROLLBACK");
+      throw error;
+    }
+    return { account: null };
+  }
   if (route === "sair") {
     revoke(req);
     res.setHeader("Set-Cookie", cookie(req, "", 0));
@@ -167,7 +209,8 @@ async function handle(req, res, route) {
   } else {
     const row = db().prepare("SELECT * FROM accounts WHERE email=?").get(email);
     const candidate = await derive(password, row?.salt ?? dummySalt, 64);
-    if (!row || !timingSafeEqual(candidate, Buffer.from(row.hash, "hex")))
+    if (!row || !timingSafeEqual(candidate, Buffer.from(row.hash, "hex")) ||
+        !db().prepare("SELECT 1 FROM accounts WHERE id=? AND hash=?").get(row.id, row.hash))
       throw problem(401, "E-mail ou senha incorretos.");
     account = publicFields(row);
   }
