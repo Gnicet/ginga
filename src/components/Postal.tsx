@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useMediaSource } from "./useMediaSource";
 import { Bookmark, Mail, MapPin, MessageSquare, Vote, Mic } from "lucide-react";
 import { usePlaza } from "../context/Praca";
 import { tracks, trackUrl } from "../data/praca";
@@ -32,15 +33,19 @@ function Ballot({ card }: { card: Card }) {
             key={i}
             aria-pressed={media.vote === i}
             onClick={() =>
-              edit(card.id, (c) => {
-                if (c.media.kind !== "enquete") return c;
-                const prev = c.media,
-                  counts = [...prev.counts];
-                if (prev.vote !== undefined) counts[prev.vote]--;
-                const vote = prev.vote === i ? undefined : i;
-                if (vote !== undefined) counts[vote]++;
-                return { ...c, media: { ...prev, vote, counts } };
-              })
+              edit(
+                card.id,
+                (c) => {
+                  if (c.media.kind !== "enquete") return c;
+                  const prev = c.media,
+                    counts = [...prev.counts];
+                  if (prev.vote !== undefined) counts[prev.vote]--;
+                  const vote = prev.vote === i ? undefined : i;
+                  if (vote !== undefined) counts[vote]++;
+                  return { ...c, media: { ...prev, vote, counts } };
+                },
+                { type: "vote", value: media.vote === i ? null : i },
+              )
             }
           >
             <i style={{ width: pct + "%" }} />
@@ -67,16 +72,21 @@ export function Postal({
 }) {
   const { state, edit, save } = usePlaza(),
     m = card.media;
+  const picture = useMediaSource(m.kind === "visual" ? m.image : undefined);
   const Icon = m.kind === "voz" ? Mic : m.kind === "enquete" ? Vote : Mail;
   const [adhesives, show] = useState(false);
   function stick(type: Sticker) {
-    edit(card.id, (c) => {
-      const counts = { ...c.counts };
-      if (c.sticker) counts[c.sticker] = (counts[c.sticker] ?? 1) - 1;
-      const sticker = c.sticker === type ? undefined : type;
-      if (sticker) counts[sticker] = (counts[sticker] ?? 0) + 1;
-      return { ...c, sticker, counts };
-    });
+    edit(
+      card.id,
+      (c) => {
+        const counts = { ...c.counts };
+        if (c.sticker) counts[c.sticker] = (counts[c.sticker] ?? 1) - 1;
+        const sticker = c.sticker === type ? undefined : type;
+        if (sticker) counts[sticker] = (counts[sticker] ?? 0) + 1;
+        return { ...c, sticker, counts };
+      },
+      { type: "sticker", value: card.sticker === type ? null : type },
+    );
     show(false);
   }
   return (
@@ -108,7 +118,7 @@ export function Postal({
       </div>
       {m.kind === "visual" && (
         <div className="picture">
-          <img src={m.image} alt={m.alt} />
+          <img src={picture} alt={m.alt} />
           <Stamp city={card.city} />
         </div>
       )}
@@ -166,7 +176,7 @@ export function Postal({
   );
 }
 export function OpenPostal({ card, close }: { card: Card; close: () => void }) {
-  const { edit, state } = usePlaza(),
+  const { edit, state, busy } = usePlaza(),
     [text, write] = useState(""),
     [audio, record] = useState("");
   return (
@@ -185,7 +195,7 @@ export function OpenPostal({ card, close }: { card: Card; close: () => void }) {
             </div>
           ))}
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               if (!text.trim() && !audio) return;
               const note = {
@@ -194,7 +204,14 @@ export function OpenPostal({ card, close }: { card: Card; close: () => void }) {
                 text: text.trim(),
                 audio,
               };
-              edit(card.id, (c) => ({ ...c, notes: [...c.notes, note] }));
+              if (
+                !(await edit(
+                  card.id,
+                  (c) => ({ ...c, notes: [...c.notes, note] }),
+                  { type: "note", value: note },
+                ))
+              )
+                return;
               write("");
               record("");
             }}
@@ -209,7 +226,10 @@ export function OpenPostal({ card, close }: { card: Card; close: () => void }) {
             </label>
             <Recorder limit={15} onAudio={record} />
             {audio && <Player src={audio} label="Sua gravação" />}
-            <button className="primary" disabled={!text.trim() && !audio}>
+            <button
+              className="primary"
+              disabled={busy || (!text.trim() && !audio)}
+            >
               Colar bilhete
             </button>
           </form>

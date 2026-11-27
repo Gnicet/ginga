@@ -181,6 +181,7 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
         <i />
         {guests.length} na mesa · {guests.map((g) => g.name).join(", ")}
       </div>
+      <small>Esta roda guarda até 60 recados recentes.</small>
       <div className="conversation" aria-live="polite">
         {messages
           .filter((m) => !m.reaction)

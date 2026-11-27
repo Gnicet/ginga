@@ -1,0 +1,215 @@
+[
+  {
+    "id": "barra",
+    "title": "Quando a Barra vira cartão-postal",
+    "city": "Salvador • BA",
+    "author": "Bia Oliveira",
+    "tribe": "Arte & Rua",
+    "paper": "creme",
+    "media": {
+      "kind": "visual",
+      "image": "/barra.svg",
+      "alt": "Gravura do Farol da Barra ao entardecer"
+    },
+    "track": 0,
+    "counts": {
+      "salve": 12,
+      "brabo": 3
+    },
+    "notes": [
+      {
+        "id": "barra-bilhete",
+        "name": "Lia",
+        "text": "Essa luz da Bahia eu reconheço de longe."
+      }
+    ]
+  },
+  {
+    "id": "feira",
+    "title": "O segredo do pastel da feira",
+    "city": "Recife • PE",
+    "author": "Cida Alves",
+    "tribe": "Comida de Boteco",
+    "paper": "azul",
+    "media": {
+      "kind": "voz",
+      "audio": "/audio/feira.wav"
+    },
+    "track": 1,
+    "counts": {
+      "salve": 12,
+      "brabo": 3
+    },
+    "notes": [
+      {
+        "id": "feira-bilhete",
+        "name": "Lia",
+        "text": "Pimenta da casa, sempre!"
+      }
+    ]
+  },
+  {
+    "id": "cafe-da-tarde",
+    "title": "Pão de queijo ou cuscuz no café da tarde?",
+    "city": "Belo Horizonte • MG",
+    "author": "Zeca Reis",
+    "tribe": "Comida de Boteco",
+    "paper": "sol",
+    "media": {
+      "kind": "enquete",
+      "options": [
+        "Pão de queijo",
+        "Cuscuz"
+      ],
+      "counts": [
+        32,
+        28
+      ]
+    },
+    "track": 1,
+    "counts": {
+      "salve": 20,
+      "brabo": 3
+    },
+    "notes": [
+      {
+        "id": "cafe-da-tarde-bilhete",
+        "name": "Lia",
+        "text": "Aqui em casa tem lugar pros dois."
+      }
+    ]
+  },
+  {
+    "id": "rio",
+    "title": "O Rio visto lá de cima",
+    "city": "Rio de Janeiro • RJ",
+    "author": "Léo Luz",
+    "tribe": "Arte & Rua",
+    "paper": "creme",
+    "media": {
+      "kind": "visual",
+      "image": "/media/rio.jpg",
+      "alt": "Vista panorâmica das montanhas e da baía do Rio de Janeiro"
+    },
+    "track": 0,
+    "counts": {
+      "salve": 10,
+      "brabo": 3
+    },
+    "notes": [
+      {
+        "id": "rio-bilhete",
+        "name": "Lia",
+        "text": "Essa vista merece virar gravura."
+      }
+    ]
+  },
+  {
+    "id": "coado",
+    "title": "Primeiro o coado. Depois o código.",
+    "city": "Salvador • BA",
+    "author": "Genilson",
+    "tribe": "Café & Código",
+    "paper": "creme",
+    "media": {
+      "kind": "visual",
+      "image": "/media/cafe.jpg",
+      "alt": "Fotografia de café recém-preparado"
+    },
+    "track": 1,
+    "counts": {
+      "salve": 12,
+      "brabo": 3
+    },
+    "notes": [
+      {
+        "id": "coado-bilhete",
+        "name": "Lia",
+        "text": "Assim começa todo projeto por aqui."
+      }
+    ],
+    "mine": true
+  },
+  {
+    "id": "onibus",
+    "title": "Peguei o ônibus errado. E agora?",
+    "city": "São Paulo • SP",
+    "author": "Nina Sá",
+    "tribe": "Humor & Causos",
+    "paper": "rosa",
+    "media": {
+      "kind": "voz",
+      "audio": "/audio/causo.wav"
+    },
+    "track": 2,
+    "counts": {
+      "salve": 13,
+      "brabo": 3
+    },
+    "notes": [
+      {
+        "id": "onibus-bilhete",
+        "name": "Lia",
+        "text": "Pelo menos foi com vista!"
+      }
+    ]
+  },
+  {
+    "id": "samba",
+    "title": "Quem puxa a primeira na roda de domingo?",
+    "city": "Olinda • PE",
+    "author": "Téo Silva",
+    "tribe": "Roda de Samba & Música",
+    "paper": "sol",
+    "media": {
+      "kind": "enquete",
+      "options": [
+        "Clara Nunes",
+        "Cartola",
+        "Dona Ivone Lara"
+      ],
+      "counts": [
+        12,
+        9,
+        14
+      ]
+    },
+    "track": 0,
+    "counts": {
+      "salve": 12,
+      "brabo": 3
+    },
+    "notes": [
+      {
+        "id": "samba-bilhete",
+        "name": "Lia",
+        "text": "Na dúvida, toca os três."
+      }
+    ]
+  },
+  {
+    "id": "azulejo",
+    "title": "Um jardim de azulejos na parede",
+    "city": "São Luís • MA",
+    "author": "Sol Barbosa",
+    "tribe": "Arte & Rua",
+    "paper": "creme",
+    "media": {
+      "kind": "visual",
+      "image": "/azulejo.svg",
+      "alt": "Composição original de azulejos florais em azul-cobalto"
+    },
+    "track": 0,
+    "counts": {
+      "salve": 14,
+      "brabo": 3
+    },
+    "notes": [
+      {
+        "id": "azulejo-bilhete",
+        "name": "Lia",
+        "text": "Minha avó tinha uma parede assim."
+      }
+    ]
+  }
+]

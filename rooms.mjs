@@ -1,10 +1,19 @@
-import { accountApi, currentAccount } from "./accounts.mjs";
+import { muralApi } from "./mural.mjs";
+import { accountApi, currentAccount, db } from "./accounts.mjs";
 const desks = new Map(
-  ["cafe", "bola", "som", "causos"].map((id) => [
-    id,
-    { guests: new Map(), messages: [] },
-  ]),
+  ["cafe", "bola", "som", "causos"].map((id) => [id, { guests: new Map() }]),
 );
+let historyReady = false;
+function history() {
+  const s = db();
+  if (!historyReady) {
+    s.exec(
+      "CREATE TABLE IF NOT EXISTS room_events(room TEXT NOT NULL,id TEXT NOT NULL,body TEXT NOT NULL,size INTEGER NOT NULL,PRIMARY KEY(room,id))",
+    );
+    historyReady = true;
+  }
+  return s;
+}
 const MAX_BYTES = 1500000;
 export function roomApi(req, res, next) {
   const url = new URL(req.url, "http://localhost");
@@ -36,7 +45,8 @@ export function roomApi(req, res, next) {
     return;
   }
   if (!url.pathname.startsWith("/api/rodas/")) return next();
-  const desk = desks.get(url.pathname.split("/")[3]);
+  const room = url.pathname.split("/")[3],
+    desk = desks.get(room);
   const send = (code, body) => {
     res.writeHead(code, {
       "Content-Type": "application/json",
@@ -105,18 +115,37 @@ export function roomApi(req, res, next) {
         return send(400, { error: "Recado vazio" });
       if (typeof m.id !== "string" || m.id.length > 64)
         return send(400, { error: "Bilhete inválido" });
-      if (!desk.messages.some((x) => x.id === m.id))
-        desk.messages.push({ id: m.id, name, text, audio, reaction });
-      while (
-        desk.messages.length > 60 ||
-        desk.messages.reduce((n, m) => n + (m.audio?.length || 0), 0) > 5000000
-      )
-        desk.messages.shift();
+      const s = history(),
+        body = JSON.stringify({ id: m.id, name, text, audio, reaction });
+      s.exec("BEGIN IMMEDIATE");
+      try {
+        s.prepare("INSERT OR IGNORE INTO room_events VALUES(?,?,?,?)").run(
+          room,
+          m.id,
+          body,
+          Buffer.byteLength(body),
+        );
+        s.prepare(
+          `DELETE FROM room_events WHERE rowid IN (SELECT seq FROM (
+          SELECT rowid AS seq, row_number() OVER (ORDER BY rowid DESC) AS pos,
+          sum(size) OVER (ORDER BY rowid DESC) AS bytes FROM room_events WHERE room=?
+        ) WHERE pos>60 OR bytes>5000000)`,
+        ).run(room);
+        s.exec("COMMIT");
+      } catch {
+        s.exec("ROLLBACK");
+        return send(503, { error: "Não foi possível salvar o recado." });
+      }
     }
-    const after = desk.messages.findIndex((m) => m.id === data.after);
+    const messages = history()
+      .prepare(
+        "SELECT body FROM room_events WHERE room=? AND rowid>coalesce((SELECT rowid FROM room_events WHERE room=? AND id=?),0) ORDER BY rowid",
+      )
+      .all(room, room, typeof data.after === "string" ? data.after : "")
+      .map((row) => JSON.parse(row.body));
     send(200, {
       guests: [...desk.guests.values()].map(({ id, name }) => ({ id, name })),
-      messages: desk.messages.slice(after + 1),
+      messages,
     });
   });
 }
@@ -125,10 +154,12 @@ export default function roomsPlugin() {
     name: "praca-rodas",
     configureServer(server) {
       server.middlewares.use(accountApi);
+      server.middlewares.use(muralApi);
       server.middlewares.use(roomApi);
     },
     configurePreviewServer(server) {
       server.middlewares.use(accountApi);
+      server.middlewares.use(muralApi);
       server.middlewares.use(roomApi);
     },
   };

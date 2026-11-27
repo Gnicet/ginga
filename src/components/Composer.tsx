@@ -1,3 +1,4 @@
+import { useAccess } from "./Access";
 import { useState } from "react";
 import { ImagePlus, Mic, Vote } from "lucide-react";
 import {
@@ -19,7 +20,8 @@ export function Composer({
   close: () => void;
   published: () => void;
 }) {
-  const { state, set } = usePlaza();
+  const { account } = useAccess();
+  const { state, publishCard, busy } = usePlaza();
   const [kind, mode] = useState<Media["kind"]>("visual"),
     [title, headline] = useState(""),
     [city, place] = useState(state.profile.city),
@@ -62,7 +64,7 @@ export function Composer({
         : names.every(Boolean) &&
           new Set(names.map((x) => x.toLocaleLowerCase("pt-BR"))).size ===
             names.length);
-  function publish() {
+  async function publish() {
     if (!valid) return;
     const media: Media =
       kind === "visual"
@@ -83,7 +85,10 @@ export function Composer({
       notes: [],
       counts: {},
     };
-    set((s) => ({ ...s, cards: [card, ...s.cards] }));
+    if (!(await publishCard(card))) {
+      fail("O cartão não foi enviado. Tente novamente.");
+      return;
+    }
     published();
   }
   return (
@@ -229,8 +234,13 @@ export function Composer({
             ))}
           </div>
         </fieldset>
+        <small>
+          {account
+            ? "Visível para outras contas da Praça."
+            : "Como visitante, o cartão fica só neste aparelho."}
+        </small>
         {error && <p role="alert">{error}</p>}
-        <button className="primary" disabled={!valid}>
+        <button className="primary" disabled={!valid || busy}>
           Colar no Mural
         </button>
       </form>

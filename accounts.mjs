@@ -14,7 +14,7 @@ import {
 const derive = promisify(scrypt);
 const lifetime = 60 * 60 * 24 * 14;
 let connection;
-function db() {
+export function db() {
   if (connection) return connection;
   const dir = resolve(process.env.PRACA_DATA_DIR || join(homedir(), ".praca"));
   mkdirSync(dir, { recursive: true, mode: 0o700 });

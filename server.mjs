@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import sirv from "sirv";
 import { accountApi } from "./accounts.mjs";
+import { muralApi } from "./mural.mjs";
 import { roomApi } from "./rooms.mjs";
 
 const assets = fileURLToPath(new URL("./dist/", import.meta.url));
@@ -13,11 +14,13 @@ const port = Number(process.env.PORT || 4173),
   host = process.env.HOST || "127.0.0.1";
 createServer((req, res) => {
   accountApi(req, res, () =>
-    roomApi(req, res, () =>
-      serve(req, res, () => {
-        res.writeHead(404);
-        res.end();
-      }),
+    muralApi(req, res, () =>
+      roomApi(req, res, () =>
+        serve(req, res, () => {
+          res.writeHead(404);
+          res.end();
+        }),
+      ),
     ),
   );
 }).listen(port, host, () =>

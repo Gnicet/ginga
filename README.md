@@ -14,11 +14,17 @@ npm start
 
 Abra http://127.0.0.1:4173. Para editar com atualização automática, use `npm run dev` e abra o endereço impresso pelo Vite.
 
-**Criar minha conta** pede nome, cidade, e-mail e senha. O acesso é iniciado após o cadastro. O Passaporte permite atualizar o nome e sair. **Explorar como visitante** abre o mural demonstrativo e preserva os dados de visitante das versões anteriores. Cada conta mantém seus cartões e guardados no navegador ou aparelho em que foram criados.
+**Criar minha conta** pede nome, cidade, e-mail e senha. O acesso é iniciado após o cadastro. O Passaporte permite atualizar o nome e sair. **Explorar como visitante** abre o mural demonstrativo e preserva os dados de visitante das versões anteriores. Ao entrar, as novas publicações, votos, bilhetes e adesivos são compartilhados com outras contas do mesmo servidor. Os guardados são privados e acompanham a conta. Cartões pessoais de versões anteriores permanecem no aparelho. O modo visitante usa dados locais.
 
 ## Servidor e dados
 
-O servidor Node atende os arquivos de `dist`, as rotas `/api/conta` e as Rodas. As contas e sessões ficam em SQLite, em `.praca/contas.sqlite` na pasta pessoal do usuário do servidor. Para hospedar, configure `PRACA_DATA_DIR` com um diretório persistente fora da pasta pública, `HOST` e `PORT` para a escuta e `PRACA_HTTPS=1` quando o serviço estiver atrás de um proxy HTTPS. Preserve esse diretório nas atualizações. As senhas usam scrypt com salt individual. As sessões duram 14 dias e são revogadas ao sair. Mensagens das Rodas ficam em memória no processo.
+O servidor Node atende os arquivos de `dist`, as rotas `/api/conta`, `/api/mural` e as Rodas. As contas, sessões, cartões, mídias e interações do Mural ficam em SQLite, em `.praca/contas.sqlite` na pasta pessoal do usuário do servidor. Para hospedar, configure `PRACA_DATA_DIR` com um diretório persistente fora da pasta pública, `HOST` e `PORT` para a escuta e `PRACA_HTTPS=1` quando o serviço estiver atrás de um proxy HTTPS. Preserve esse diretório nas atualizações. As senhas usam scrypt com salt individual. As sessões duram 14 dias e são revogadas ao sair. A presença nas Rodas é temporária. Cada mesa mantém as últimas 60 mensagens no banco, com limite total de 5 MB por mesa.
+
+## Hospedar e manter uma cópia dos dados
+
+O Dockerfile empacota o servidor e a interface em uma única instância. Configure um volume persistente montado em `/data`, com acesso de escrita para o usuário Node (UID 1000). Direcione o HTTPS do provedor para a porta indicada por `PORT`. Quando a origem pública estiver disponível, configure `PRACA_HTTPS=1` e gere o APK com `VITE_API_ORIGIN` apontando para essa origem. A imagem também pode ser construída com `docker build -t praca .`.
+
+Para fazer uma cópia consistente mesmo com o servidor ativo, execute `node backup.mjs caminho/para/copia.sqlite` com o mesmo `PRACA_DATA_DIR` do servidor. O arquivo inclui credenciais protegidas, sessões, mídias e conteúdo pessoal. Mantenha as cópias fora da pasta pública, com acesso restrito. Para testar a restauração, use uma pasta vazia, copie o backup para ela com o nome `contas.sqlite` e inicie uma instância isolada apontando para essa pasta.
 
 ## Android
 

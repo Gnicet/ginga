@@ -34,6 +34,7 @@ export interface Card {
   id: string;
   author: string;
   mine?: boolean;
+  shared?: boolean;
   title: string;
   city: string;
   tribe: Tribe;

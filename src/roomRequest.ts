@@ -36,7 +36,9 @@ export async function apiRequest(
 function handleSession(path: string, response: Response) {
   if (
     response.status === 401 &&
-    (path.startsWith("/api/rodas") || path.endsWith("/perfil"))
+    (path.startsWith("/api/mural") ||
+      path.startsWith("/api/rodas") ||
+      path.endsWith("/perfil"))
   )
     window.dispatchEvent(new Event("praca-expired"));
   return response;

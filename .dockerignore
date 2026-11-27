@@ -1,0 +1,12 @@
+**
+!package*.json
+!*.mjs
+!*.mts
+!*.js
+!*.ts
+!index.html
+!src/
+!src/**
+!public/
+!public/**
+!tsconfig.json

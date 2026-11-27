@@ -2,10 +2,12 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { useAccess } from "../components/Access";
+import { apiRequest } from "../roomRequest";
 import { seed } from "../data/praca";
 import type { Card, Plaza } from "../types/praca";
 const database = () =>
@@ -95,19 +97,123 @@ function usePlazaModel() {
         report("Sem espaço para salvar esta alteração no dispositivo.");
     }
   }, [state, db]);
-  const edit = (id: string, fn: (card: Card) => Card) =>
+  const localEdit = (id: string, fn: (card: Card) => Card) =>
     set((s) => ({
       ...s,
       cards: s.cards.map((c) => (c.id === id ? fn(c) : c)),
     }));
-  const save = (id: string) =>
+  const localSave = (id: string) =>
     set((s) => ({
       ...s,
       saved: s.saved.includes(id)
         ? s.saved.filter((x) => x !== id)
         : [...s.saved, id],
     }));
-  return { state, set, edit, save, ready, error };
+  const queue = useRef(Promise.resolve()),
+    active = useRef(true),
+    pending = useRef(0);
+  const [busy, working] = useState(false);
+  type Action = {
+    type: "vote" | "sticker" | "note" | "publish" | "saved";
+    value: unknown;
+    id?: string;
+  };
+  function sync(action?: Action) {
+    if (action) {
+      pending.current++;
+      working(true);
+    }
+    const task = queue.current.then(async () => {
+      if (!active.current) return false;
+      try {
+        const response = await apiRequest(
+          "/api/mural",
+          action
+            ? {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(action),
+              }
+            : {},
+        );
+        const payload = await response.json();
+        if (!response.ok) throw Error(payload.error || "Mural indisponível.");
+        if (active.current) {
+          set((previous) => {
+            const remoteIds = new Set(payload.cards.map((c: Card) => c.id));
+            const local = previous.cards.filter(
+              (c) => c.mine && !c.shared && !remoteIds.has(c.id),
+            );
+            return {
+              ...previous,
+              cards: [...payload.cards, ...local],
+              saved: [
+                ...payload.saved,
+                ...previous.saved.filter((id) =>
+                  local.some((c) => c.id === id),
+                ),
+              ],
+            };
+          });
+          report("");
+        }
+        return true;
+      } catch (e) {
+        if (active.current)
+          report(
+            e instanceof Error ? e.message : "Falha de conexão com a Praça.",
+          );
+        return false;
+      } finally {
+        if (action) {
+          pending.current--;
+          if (active.current) working(pending.current > 0);
+        }
+      }
+    });
+    queue.current = task.then(() => {});
+    return task;
+  }
+  useEffect(() => {
+    active.current = true;
+    if (!ready || !account) return;
+    let fetching = false;
+    const refresh = () => {
+      if (fetching || pending.current || document.hidden) return;
+      fetching = true;
+      void sync().finally(() => {
+        fetching = false;
+      });
+    };
+    refresh();
+    const timer = setInterval(refresh, 5000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      active.current = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [ready, account?.id]);
+  const isRemote = (id: string) =>
+    !!account &&
+    (state.cards.find((c) => c.id === id)?.shared ||
+      seed.cards.some((c) => c.id === id));
+  function edit(id: string, fn: (card: Card) => Card, action: Action) {
+    if (isRemote(id)) return sync({ ...action, id });
+    localEdit(id, fn);
+    return Promise.resolve(true);
+  }
+  function save(id: string) {
+    if (isRemote(id))
+      void sync({ id, type: "saved", value: !state.saved.includes(id) });
+    else localSave(id);
+  }
+  function publishCard(card: Card) {
+    if (account) return sync({ type: "publish", value: card });
+    set((s) => ({ ...s, cards: [card, ...s.cards] }));
+    return Promise.resolve(true);
+  }
+  return { state, set, edit, save, publishCard, busy, ready, error };
 }
 const Context = createContext<ReturnType<typeof usePlazaModel> | null>(null);
 export function PlazaProvider({ children }: { children: ReactNode }) {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useMediaSource } from "./useMediaSource";
 import { Mic, Pause, Play, Square } from "lucide-react";
 export function asData(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -26,6 +27,7 @@ export function Player({
   wave?: boolean;
 }) {
   const ref = useRef<HTMLAudioElement>(null);
+  const audioSrc = useMediaSource(src);
   const [playing, setPlaying] = useState(false),
     [time, setTime] = useState(0),
     [duration, setDuration] = useState(0),
@@ -41,7 +43,7 @@ export function Player({
     <div className={"player " + (wave ? "wave" : "")}>
       <audio
         ref={ref}
-        src={src}
+        src={audioSrc}
         preload="metadata"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
