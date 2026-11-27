@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import rules from "./src/data/regras.json" with { type: "json" };
 import { initializeCommunity, communityAction, removeAccount } from "./community.mjs";
 import { mkdirSync } from "node:fs";
 import { resolve, join } from "node:path";
@@ -25,6 +26,7 @@ export function db() {
     CREATE TABLE IF NOT EXISTS sessions(digest TEXT PRIMARY KEY,account TEXT NOT NULL REFERENCES accounts(id),expires INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS session_expiry ON sessions(expires);
     CREATE TABLE IF NOT EXISTS recovery_codes(account TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,digest TEXT NOT NULL);`);
+  store.exec("CREATE TABLE IF NOT EXISTS rule_acceptances(account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,version TEXT NOT NULL,accepted_at INTEGER NOT NULL,PRIMARY KEY(account,version))");
   initializeCommunity(store);
   connection = store;
   return store;
@@ -101,10 +103,16 @@ function limit(req) {
 function publicFields(row) {
   return { id: row.id, email: row.email, name: row.name, city: row.city };
 }
+export function acceptedRules(accountId) {
+  return !!db().prepare("SELECT 1 FROM rule_acceptances WHERE account=? AND version=?").get(accountId,rules.version);
+}
+function withRules(account) {
+  return account ? {...account, acceptedRules: acceptedRules(account.id) ? rules.version : null} : null;
+}
 const dummySalt = randomBytes(16).toString("hex");
 async function handle(req, res, route) {
   if (route === "sessao" && req.method === "GET")
-    return { account: currentAccount(req) ?? null };
+    return { account: withRules(currentAccount(req)) };
   if (req.method !== "POST") throw problem(405, "Método indisponível.");
   if (
     req.headers.origin &&
@@ -114,6 +122,13 @@ async function handle(req, res, route) {
   )
     throw problem(403, "Origem inválida.");
   const fields = await input(req);
+  if (route === "aceitar-regras") {
+    const account = currentAccount(req);
+    if (!account) throw problem(401,"Entre novamente.");
+    if (fields.version !== rules.version) throw problem(409,"Atualize a Praça para ler as regras em vigor.");
+    db().prepare("INSERT OR IGNORE INTO rule_acceptances VALUES(?,?,?)").run(account.id,rules.version,Date.now());
+    return {account:withRules(account)};
+  }
   if (["denunciar","bloquear","desbloquear","bloqueados"].includes(route)) {
     const user = currentAccount(req);
     if (!user) throw problem(401,"Entre novamente.");
@@ -197,7 +212,7 @@ async function handle(req, res, route) {
     if (!name || name.length > 40)
       throw problem(400, "Informe um nome de até 40 caracteres.");
     db().prepare("UPDATE accounts SET name=? WHERE id=?").run(name, current.id);
-    return { account: { ...current, name } };
+    return { account: withRules({ ...current, name }) };
   }
   if (!["entrar", "cadastro"].includes(route))
     throw problem(404, "Página indisponível.");
@@ -247,7 +262,7 @@ async function handle(req, res, route) {
     account = publicFields(row);
   }
   startSession(req, res, account);
-  return { account };
+  return { account: withRules(account) };
 }
 export function accountApi(req, res, next) {
   const path = req.url.split("?")[0];

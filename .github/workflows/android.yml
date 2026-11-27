@@ -33,6 +33,8 @@ jobs:
       - run: node --test accounts.test.mjs mural.test.mjs
       - run: npm run android:sync
         env:
+          VITE_PRIVACY_OPERATOR: ${{ vars.VITE_PRIVACY_OPERATOR }}
+          VITE_PRIVACY_EMAIL: ${{ vars.VITE_PRIVACY_EMAIL }}
           VITE_API_ORIGIN: ${{ vars.VITE_API_ORIGIN }}
           VITE_RODAS_ORIGIN: ${{ vars.VITE_RODAS_ORIGIN }}
       - name: Validar servidor em contêiner

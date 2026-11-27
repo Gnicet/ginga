@@ -5,6 +5,8 @@ import App from "./App";
 import { PlazaProvider } from "./context/Praca";
 import "./index.css";
 import { PublicDeletion } from "./components/Community";
+import { Policies } from "./components/Policies";
+const page = new URLSearchParams(location.search);
 function SessionApp() {
   const { account } = useAccess();
   return (
@@ -15,7 +17,8 @@ function SessionApp() {
 }
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {new URLSearchParams(location.search).has("excluir-conta") ? <PublicDeletion /> : <Access>
+    {page.has("privacidade") || page.has("regras") ? <Policies privacy={page.has("privacidade")} /> :
+      page.has("excluir-conta") ? <PublicDeletion /> : <Access>
       <SessionApp />
     </Access>}
   </React.StrictMode>,

@@ -84,6 +84,7 @@ export function Rodas() {
   );
 }
 function Sala({ room, leave }: { room: Room; leave: () => void }) {
+  const { confirmRules } = useAccess();
   const { state } = usePlaza(),
     name = state.profile.name;
   const [id] = useState(() => crypto.randomUUID()),
@@ -160,6 +161,7 @@ function Sala({ room, leave }: { room: Room; leave: () => void }) {
     if (busy || (!reaction && !audio && !text.trim())) return;
     wait(true);
     try {
+      if (!await confirmRules()) return;
       await sync({
         id: crypto.randomUUID(),
         text: reaction ? "" : text.trim(),

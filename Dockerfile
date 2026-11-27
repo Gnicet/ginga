@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+ARG VITE_PRIVACY_OPERATOR
+ARG VITE_PRIVACY_EMAIL
 RUN npm run build && npm prune --omit=dev
 
 FROM node:24-bookworm-slim
@@ -12,7 +14,7 @@ RUN mkdir /data && chown node:node /data
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json backup.mjs accounts.mjs community.mjs moderate.mjs mural.mjs rooms.mjs server.mjs ./
-COPY src/data/postais.json ./src/data/postais.json
+COPY src/data/postais.json src/data/regras.json ./src/data/
 USER node
 EXPOSE 4173
 CMD ["node","server.mjs"]

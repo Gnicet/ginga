@@ -11,6 +11,7 @@ import { createServer } from "node:http";
 import { accountApi } from "./accounts.mjs";
 import { roomApi } from "./rooms.mjs";
 import { muralApi } from "./mural.mjs";
+import rules from "./src/data/regras.json" with { type: "json" };
 
 function listen() {
   const server = createServer((req, res) =>
@@ -85,6 +86,12 @@ if (process.argv.includes("--fixture")) {
       media: { kind: "enquete", options: ["Açaí", "Cupuaçu"] },
     };
     const send = (who, action) => call("/api/mural", who, action);
+    for (const who of [ana,bia]) {
+      const feed = (await (await call("/api/mural",who)).json()).cards;
+      assert.equal((await send(who,{type:"saved",id:feed[0].id,value:false})).status,200);
+      assert.equal((await send(who,{type:"publish",value:poll})).status,428);
+      assert.equal((await call("/api/conta/aceitar-regras",who,{version:rules.version})).status,200);
+    }
     const timeline = async (who) => (await call("/api/mural", who)).json();
     assert.equal(
       (await send("", { type: "publish", value: poll })).status,

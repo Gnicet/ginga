@@ -30,6 +30,10 @@ Para fazer uma cópia consistente mesmo com o servidor ativo, execute `node back
 
 ### Segurança da comunidade
 
+As páginas públicas de regras e privacidade ficam em `/?regras` e `/?privacidade`. Antes da primeira publicação no Mural ou nas Rodas, o servidor exige o aceite da versão em vigor, inclusive para contas existentes. O conteúdo das regras e sua versão ficam em `src/data/regras.json`. Ao alterar as regras, atualize a versão para solicitar novo aceite.
+
+Para identificar o responsável na política pública, defina `VITE_PRIVACY_OPERATOR` e `VITE_PRIVACY_EMAIL` durante a compilação web e Android. No Docker, passe esses nomes como argumentos de build. Antes do lançamento, complete os dados de contato e revise a política conforme o provedor e a retenção real dos backups.
+
 Abra um cartão do Mural ou uma mensagem nas Rodas para denunciar conteúdo ou perfil e bloquear a pessoa. O bloqueio oculta conteúdo e presença entre as duas contas. Em **Passaporte → Pessoas bloqueadas** você pode desfazê-lo.
 
 No servidor, com o mesmo `PRACA_DATA_DIR`, use `node moderate.mjs listar` para consultar a fila. Use `node moderate.mjs arquivar ID` para encerrar uma denúncia ou `node moderate.mjs agir ID` para remover o conteúdo denunciado. Para denúncias de perfil, agir impede novas publicações e interações públicas daquela conta.

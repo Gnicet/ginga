@@ -1,6 +1,6 @@
 import { muralApi } from "./mural.mjs";
 import { hiddenAccounts, restricted } from "./community.mjs";
-import { accountApi, currentAccount, db } from "./accounts.mjs";
+import { accountApi, currentAccount, db, acceptedRules } from "./accounts.mjs";
 const desks = new Map(
   ["cafe", "bola", "som", "causos"].map((id) => [id, { guests: new Map() }]),
 );
@@ -94,6 +94,7 @@ export function roomApi(req, res, next) {
     }
     desk.guests.set(seatId, { id: seatId, name, seen: now, owner: account.id });
     if (data.message) {
+      if (!acceptedRules(account.id)) return send(428,{error:"Aceite as regras da comunidade antes de enviar recados."});
       if (restricted(db(),account.id)) return send(403,{error:"Sua conta está impedida de publicar."});
       const m = data.message,
         text = typeof m.text === "string" ? m.text.trim().slice(0, 1000) : "",

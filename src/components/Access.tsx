@@ -8,7 +8,10 @@ import {
 } from "react";
 import { Flower2, Eye, EyeOff } from "lucide-react";
 import { apiRequest } from "../roomRequest";
+import { PolicyLinks } from "./Policies";
+import rules from "../data/regras.json";
 export interface Account {
+  acceptedRules: string | null;
   id: string;
   name: string;
   city: string;
@@ -42,6 +45,7 @@ const AccessContext = createContext<{
   account: Account | null;
   exit: () => Promise<void>;
   rename: (name: string) => Promise<void>;
+  confirmRules: () => Promise<boolean>;
 } | null>(null);
 export function useAccess() {
   const value = useContext(AccessContext);
@@ -111,7 +115,15 @@ export function Access({ children }: { children: ReactNode }) {
   }
   if (account || guest)
     return (
-      <AccessContext.Provider value={{ account, exit, rename }}>
+      <AccessContext.Provider value={{ account, exit, rename, confirmRules: async () => {
+        if (!account || account.acceptedRules === rules.version) return true;
+        const agreed = window.confirm(["Regras da comunidade da Praça", ...rules.rules,
+          "Ao confirmar, você aceita estas regras para publicar. Cancelar mantém seu conteúdo sem envio."].join("\n\n"));
+        if (!agreed) return false;
+        const next = await accountCall("aceitar-regras",{version:rules.version});
+        set(next);
+        return true;
+      } }}>
         {children}
       </AccessContext.Provider>
     );
@@ -285,6 +297,7 @@ function Entry({
         <button className="outline" disabled={busy} onClick={guest}>
           Explorar como visitante
         </button>
+        <PolicyLinks />
       </section>
     </main>
   );

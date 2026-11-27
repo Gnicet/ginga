@@ -18,7 +18,7 @@ const database = () =>
     request.onerror = () => reject(request.error);
   });
 function usePlazaModel() {
-  const { account } = useAccess();
+  const { account, confirmRules } = useAccess();
   const key = account ? "conta:" + account.id : "estado";
   const [state, set] = useState<Plaza>(() =>
     account
@@ -126,6 +126,7 @@ function usePlazaModel() {
     const task = queue.current.then(async () => {
       if (!active.current) return false;
       try {
+        if (action && action.type !== "saved" && !await confirmRules()) return false;
         const response = await apiRequest(
           "/api/mural",
           action

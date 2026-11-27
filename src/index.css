@@ -1068,3 +1068,8 @@ textarea {
     width: 100%;
   }
 }
+.policy-links { display: flex; flex-wrap: wrap; gap: .65rem 1.25rem; margin-block: 1rem; }
+.policy-links a, .policy-page a { text-decoration: underline; text-underline-offset: .18em; }
+.policy-page { max-width: 48rem; line-height: 1.65; }
+.policy-page h2 { margin: 1.5rem 0 .35rem; }
+.policy-page li { list-style: disc; margin: .65rem 0 .65rem 1.5rem; }

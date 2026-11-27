@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { db, currentAccount } from "./accounts.mjs";
+import { db, currentAccount, acceptedRules } from "./accounts.mjs";
 import { hiddenAccounts, restricted } from "./community.mjs";
 import examples from "./src/data/postais.json" with { type: "json" };
 
@@ -261,6 +261,7 @@ async function handle(req, path) {
   }
   if (!action || typeof action !== "object") invalid();
   if (!currentAccount(req)) invalid("Entre novamente.",401);
+  if (action.type !== "saved" && !acceptedRules(actor.id)) invalid("Aceite as regras da comunidade antes de publicar.",428);
   if (action.type !== "saved" && restricted(s,actor.id)) invalid("Sua conta está impedida de publicar.",403);
   s.exec("BEGIN IMMEDIATE");
   try {
